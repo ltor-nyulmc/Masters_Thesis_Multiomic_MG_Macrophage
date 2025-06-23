@@ -1,0 +1,1662 @@
+---
+title: "SingleNuclear RNAseq Analysis"
+output: html_document
+---
+
+```{r singleNucAnalysis, message=FALSE, warning=FALSE}
+# 1. Install Seurat if not already installed
+if (!requireNamespace("Seurat", quietly = TRUE)) {
+  install.packages("Seurat")
+}
+library(Seurat)
+
+# 2. Path to your filtered_feature_bc_matrix folder
+data_dir <- "/Users/gui/Desktop/SingleNuclear_RNAseq"
+
+# 3. Read in the 10X data, which has 2 modalities (Gene Expression + Antibody)
+counts.list <- Read10X(data.dir = data_dir)
+
+# 4. Extract ONLY the "Gene Expression" matrix
+gene.counts <- counts.list$`Gene Expression`
+
+# 5. Create a Seurat object from the Gene Expression counts
+seu <- CreateSeuratObject(counts = gene.counts, project = "My_snRNA_Analysis")
+
+# 6. Annotate mitochondrial gene percentage
+seu[["percent.mt"]] <- PercentageFeatureSet(seu, pattern = "^MT-")
+
+# 7. Example filtering: remove cells with low or very high gene counts, or high % mt
+seu <- subset(seu, subset = nFeature_RNA > 200 & nFeature_RNA < 5000 & percent.mt < 5)
+
+# 8. Standard single-cell workflow: normalize, find variable features, scale, PCA
+seu <- NormalizeData(seu)
+seu <- FindVariableFeatures(seu)
+seu <- ScaleData(seu)
+seu <- RunPCA(seu, features = VariableFeatures(seu))
+
+# 9. Quick PCA plot
+DimPlot(seu, reduction = "pca")
+```
+
+
+```{r snRNA_full, echo=FALSE, message=FALSE, warning=FALSE}
+# 1. Install needed packages if missing
+if (!requireNamespace("ggplot2", quietly = TRUE)) {
+  install.packages("ggplot2")
+}
+if (!requireNamespace("Seurat", quietly = TRUE)) {
+  install.packages("Seurat")
+}
+if (!requireNamespace("patchwork", quietly = TRUE)) {
+  install.packages("patchwork")
+}
+
+# 2. Load libraries
+library(ggplot2)
+library(Seurat)
+library(patchwork)
+
+# 3. Specify the path to your filtered_feature_bc_matrix folder
+data_dir <- "/Users/gui/Desktop/SingleNuclear_RNAseq"
+
+# 4. Read the multi-assay data
+counts.list <- Read10X(data.dir = data_dir)
+
+# 5. Extract just the gene expression data
+gene.counts <- counts.list$`Gene Expression`
+
+# 6. Create a Seurat object
+seu <- CreateSeuratObject(counts = gene.counts, project = "My_snRNA_Analysis")
+
+# 7. Annotate mitochondrial gene percentage
+seu[["percent.mt"]] <- PercentageFeatureSet(seu, pattern = "^MT-")
+
+# 8. Filter out poor-quality cells (example thresholds)
+seu <- subset(seu, subset = nFeature_RNA > 200 & nFeature_RNA < 5000 & percent.mt < 5)
+
+# 9. Normalize, identify variable features, scale, run PCA
+seu <- NormalizeData(seu)
+seu <- FindVariableFeatures(seu)
+seu <- ScaleData(seu)
+seu <- RunPCA(seu, features = VariableFeatures(seu))
+
+# 10. Cluster the data
+seu <- FindNeighbors(seu, dims = 1:10)
+seu <- FindClusters(seu, resolution = 0.5)
+
+# 11. Assign
+```
+
+```{r snRNA_full, echo=FALSE, message=FALSE, warning=FALSE}
+############### 1) Install & Load Packages ###############
+if (!requireNamespace("ggplot2", quietly = TRUE)) {
+  install.packages("ggplot2")
+}
+if (!requireNamespace("Seurat", quietly = TRUE)) {
+  install.packages("Seurat")
+}
+if (!requireNamespace("patchwork", quietly = TRUE)) {
+  install.packages("patchwork")
+}
+
+library(ggplot2)
+library(Seurat)
+library(patchwork)
+
+############### 2) Set Data Directory ###############
+# Make sure this path matches the folder containing barcodes.tsv.gz, features.tsv.gz, matrix.mtx.gz
+data_dir <- "/Users/gui/Desktop/SingleNuclear_RNAseq"
+
+############### 3) Read Multi-assay Data & Extract Gene Expression ###############
+counts.list <- Read10X(data.dir = data_dir)
+gene.counts <- counts.list$`Gene Expression`
+
+############### 4) Create Seurat Object ###############
+seu <- CreateSeuratObject(counts = gene.counts, project = "My_snRNA_Analysis")
+
+############### 5) Annotate Mitochondrial % & Filter ###############
+seu[["percent.mt"]] <- PercentageFeatureSet(seu, pattern = "^MT-")
+seu <- subset(seu, subset = nFeature_RNA > 200 & nFeature_RNA < 5000 & percent.mt < 5)
+
+############### 6) Normalize, Variable Features, Scale, PCA ###############
+seu <- NormalizeData(seu)
+seu <- FindVariableFeatures(seu)
+seu <- ScaleData(seu)
+seu <- RunPCA(seu, features = VariableFeatures(seu))
+
+############### 7) Clustering ###############
+seu <- FindNeighbors(seu, dims = 1:10)
+seu <- FindClusters(seu, resolution = 0.5)
+
+############### 8) Assign Condition (Control vs Cancer) ###############
+# Adjust logic if your barcodes or metadata differ. 
+# For demonstration, if colnames(seu) contain "CMO309" or "CMO310" => "Control", else "Cancer".
+seu$Condition <- ifelse(grepl("CMO309|CMO310", colnames(seu)), "Control", "Cancer")
+
+############### 9) Two PCA Plots: By Cluster & By Condition ###############
+p1 <- DimPlot(seu, reduction = "pca", group.by = "seurat_clusters") + ggtitle("PCA by Cluster")
+p2 <- DimPlot(seu, reduction = "pca", group.by = "Condition") + ggtitle("PCA by Condition")
+
+############### 10) Show Plots Side-by-Side ###############
+p1 + p2
+```
+```{r}
+###########################################################
+# PCA By Cluster For Normal-Only Cells
+###########################################################
+library(Seurat)
+library(ggplot2)
+library(patchwork)
+
+# 1. Subset your Seurat object to normal cells
+#    (Replace "Normal_Cluster" with whatever label you used)
+normal_obj <- subset(x = seu, idents = "Normal_Cluster")
+
+# 2. Re-run the workflow on normal_obj
+#    This helps find variation specifically among normal cells
+normal_obj <- NormalizeData(normal_obj)
+normal_obj <- FindVariableFeatures(normal_obj, selection.method = "vst", nfeatures = 2000)
+normal_obj <- ScaleData(normal_obj)
+normal_obj <- RunPCA(normal_obj, features = VariableFeatures(normal_obj))
+
+# 3. Optional: Cluster within the normal-only subset
+normal_obj <- FindNeighbors(normal_obj, dims = 1:10)
+normal_obj <- FindClusters(normal_obj, resolution = 0.5)
+normal_obj <- RunUMAP(normal_obj, dims = 1:10)  # optional, if you want a UMAP
+
+# 4. Plot PCA Colored by the New Clusters
+#    group.by = "seurat_clusters" will color each newly found cluster
+DimPlot(normal_obj, 
+        reduction = "pca", 
+        group.by = "seurat_clusters", 
+        pt.size = 1) + 
+  labs(title = "PCA by Cluster (Normal Cells Only)")
+
+###########################################################
+# END
+###########################################################
+
+```
+
+```{r}
+# See which metadata columns your Seurat object has
+names(seu@meta.data)
+
+# For each column, look at a few entries
+head(seu@meta.data)
+
+# Check what unique sample IDs are present
+unique(seu$orig.ident)
+
+```
+
+
+
+```{r improvedVolcano, fig.width=8, fig.height=6, message=FALSE, warning=FALSE}
+# 1. (Re)Install/Load EnhancedVolcano if needed
+if (!requireNamespace("BiocManager", quietly = TRUE)) {
+  install.packages("BiocManager")
+}
+if (!requireNamespace("EnhancedVolcano", quietly = TRUE)) {
+  BiocManager::install("EnhancedVolcano")
+}
+
+library(EnhancedVolcano)
+library(ggplot2)
+
+# Assume you've already run something like:
+# markers_0_vs_1 <- FindMarkers(seu, ident.1 = 0, ident.2 = 1)
+
+EnhancedVolcano(
+  markers_0_vs_1,
+  lab = rownames(markers_0_vs_1),     # gene names
+  x = 'avg_log2FC',                   # x-axis: log2 fold-change
+  y = 'p_val_adj',                    # y-axis: adjusted p-value
+  title = 'Cluster 0 vs. Cluster 1',
+  subtitle = 'Differentially Expressed Genes',
+  
+  # Axis labels using math notation
+  xlab = bquote(~Log[2]~"Fold Change"),
+  ylab = bquote(~-Log[10]~"Adjusted P"),
+  
+  # Stricter thresholds
+  pCutoff = 0.01,    # significance threshold (adjusted p-value < 0.01)
+  FCcutoff = 1.5,    # fold-change cutoff (±1.5)
+  
+  # Point and text sizing
+  pointSize = 2.5,
+  labSize = 5.0,
+  max.overlaps = 12,  # fewer overlapping labels
+  
+  # Colors: NS, log2FC only, p-value only, both
+  col = c("grey60", "#00BA38", "#619CFF", "#F8766D"),
+  
+  # Legend text & position
+  legendLabels = c("NS", "Log2 FC", "p-value", "p-value & Log2 FC"),
+  legendPosition = c(0.85, 0.15),  # x=0.85, y=0.15 (bottom-right corner)
+  
+  # Connectors for labels
+  drawConnectors = TRUE,
+  widthConnectors = 0.6,
+  colConnectors = "black",
+  
+  # Boxes around labels
+  boxedLabels = TRUE
+) +
+theme_classic(base_size = 14) +
+theme(
+  plot.title = element_text(face = "bold", size = 16),
+  plot.subtitle = element_text(size = 12),
+  axis.title = element_text(face = "bold"),
+  legend.text = element_text(size = 10),
+  legend.title = element_blank()
+)
+```
+This volcano plot compares the expression profiles of Cluster 0 versus Cluster 1 in our single‐nucleus RNA‐seq data. On the x‐axis, the log2 fold change indicates whether genes are upregulated in Cluster 0 (points to the left, negative log2 FC) or in Cluster 1 (points to the right, positive log2 FC). The y‐axis shows the statistical significance of these differences as the negative log10 of the adjusted p‐value, so higher points reflect more confidence that the genes truly differ between the two clusters. The dashed lines depict the thresholds we used (±1.5 for fold change, 0.01 for the adjusted p‐value). Genes in red pass both thresholds, while genes in green or blue exceed only one threshold (fold change or p‐value), and genes in gray fail both. The boxes label some of the top differentially expressed genes. Together, this plot highlights which genes are most strongly and significantly upregulated in Cluster 0 (extreme negative log2 FC) versus Cluster 1 (extreme positive log2 FC), helping us identify potential cluster‐specific markers or pathways.
+
+
+
+```{r classicHeatmap, message=FALSE, warning=FALSE}
+# 1) Load libraries
+if (!requireNamespace("Seurat", quietly = TRUE)) {
+  install.packages("Seurat")
+}
+if (!requireNamespace("dplyr", quietly = TRUE)) {
+  install.packages("dplyr")
+}
+
+library(Seurat)
+library(dplyr)
+
+# 2) Set the Default Assay to RNA
+DefaultAssay(seu) <- "RNA"
+
+# 3) Normalize & Scale (classic v4-style)
+#    - NormalizeData() writes log-normalized data to seu@assays$RNA@data
+#    - ScaleData() writes scaled data to seu@assays$RNA@scale.data
+seu <- NormalizeData(seu)
+seu <- ScaleData(seu)
+
+# 4) Find Markers for Cluster 0 vs. 1
+markers_0_vs_1 <- FindMarkers(seu, ident.1=0, ident.2=1)
+
+# 5) Pick Top 10 Genes Up in Each Cluster
+top_genes_0 <- markers_0_vs_1 %>%
+  filter(p_val_adj < 0.01, avg_log2FC < 0) %>%
+  arrange(avg_log2FC) %>%  # from most negative to less negative
+  head(10) %>%
+  rownames()
+
+top_genes_1 <- markers_0_vs_1 %>%
+  filter(p_val_adj < 0.01, avg_log2FC > 0) %>%
+  arrange(-avg_log2FC) %>%  # from most positive to less positive
+  head(10) %>%
+  rownames()
+
+top20 <- c(top_genes_0, top_genes_1)
+
+# 6) (Optional) Subset to Clusters 0 & 1 and Downsample (<=100 cells each)
+seu_subset <- subset(seu, idents=c(0,1))
+
+cells_by_cluster <- list()
+for (cid in c("0","1")) {
+  these_cells <- WhichCells(seu_subset, idents=cid)
+  if (length(these_cells) > 100) {
+    these_cells <- sample(these_cells, 100)  # random sample of 100
+  }
+  cells_by_cluster[[cid]] <- these_cells
+}
+final_cells <- unlist(cells_by_cluster)
+
+# 7) Plot the Heatmap Using @scale.data
+#    By default, DoHeatmap() reads from seu@assays$RNA@scale.data
+DoHeatmap(
+  object   = seu_subset,
+  features = top20,
+  cells    = final_cells
+) +
+scale_fill_gradientn(
+  colors = c("navy","white","firebrick3"), 
+  limits = c(-2,2)  # saturate extremes
+) +
+theme(
+  axis.text.y = element_text(size=10),
+  axis.text.x = element_blank(),
+  axis.title.x = element_blank()
+)
+```
+
+```{r manualPheatmapClean, message=FALSE, warning=FALSE}
+########################
+# 0) Load Packages
+########################
+if (!requireNamespace("Seurat", quietly=TRUE)) {
+  install.packages("Seurat")
+}
+if (!requireNamespace("dplyr", quietly=TRUE)) {
+  install.packages("dplyr")
+}
+if (!requireNamespace("pheatmap", quietly=TRUE)) {
+  install.packages("pheatmap")
+}
+
+library(Seurat)
+library(dplyr)
+library(pheatmap)
+
+########################
+# 1) Identify Cells in Clusters 0 & 1
+########################
+cells_0 <- WhichCells(seu, idents=0)
+cells_1 <- WhichCells(seu, idents=1)
+
+# Optional: downsample to 100 cells each for a clearer heatmap
+if (length(cells_0) > 100) { cells_0 <- sample(cells_0, 100) }
+if (length(cells_1) > 100) { cells_1 <- sample(cells_1, 100) }
+
+cells_of_interest <- c(cells_0, cells_1)
+
+########################
+# 2) Find Top Genes for Cluster 0 vs. 1
+########################
+markers_0_vs_1 <- FindMarkers(seu, ident.1=0, ident.2=1)
+
+# Example: top 10 more highly expressed in cluster 0, top 10 in cluster 1
+top_genes_0 <- markers_0_vs_1 %>%
+  filter(p_val_adj < 0.01, avg_log2FC < 0) %>%
+  arrange(avg_log2FC) %>%
+  head(10) %>%
+  rownames()
+
+top_genes_1 <- markers_0_vs_1 %>%
+  filter(p_val_adj < 0.01, avg_log2FC > 0) %>%
+  arrange(-avg_log2FC) %>%
+  head(10) %>%
+  rownames()
+
+top20 <- c(top_genes_0, top_genes_1)
+
+########################
+# 3) Extract Raw Counts (Slot="counts") from "RNA" Assay
+########################
+# - We bypass partial v5 layering by directly grabbing the raw count matrix
+raw_mat <- GetAssayData(seu, slot="counts", assay="RNA")
+
+# Subset to top genes & chosen cells
+sub_mat <- raw_mat[top20, cells_of_interest, drop=FALSE]
+
+########################
+# 4) Remove Rows/Columns That Are All Zero (Optional)
+########################
+row_sums <- rowSums(sub_mat)
+col_sums <- colSums(sub_mat)
+
+# If any row or column sums to zero, remove it
+nonzero_rows <- names(row_sums)[row_sums > 0]
+nonzero_cols <- names(col_sums)[col_sums > 0]
+
+sub_mat <- sub_mat[nonzero_rows, nonzero_cols, drop=FALSE]
+
+########################
+# 5) Manual Log-Normalization
+########################
+#  - For each cell (column), scale to total 1e4, then take log1p
+lib_size <- colSums(sub_mat)
+norm_mat <- sweep(sub_mat, 2, lib_size, FUN="/") * 1e4
+log_mat  <- log1p(norm_mat)
+
+########################
+# 6) Scale Each Gene (Row) => Z-scores
+########################
+scaled_mat <- t(scale(t(log_mat)))
+
+########################
+# 7) Fix Inf/NaN (if any)
+########################
+#  - Occasionally dividing by zero or all-zero rows can cause Inf/NaN
+scaled_mat[!is.finite(scaled_mat)] <- 0
+
+# Optionally cap extremes at ±2
+scaled_mat[scaled_mat >  2] <-  2
+scaled_mat[scaled_mat < -2] <- -2
+
+########################
+# 8) Plot with pheatmap
+########################
+#  - By default, pheatmap will cluster both rows & columns using hclust
+pheatmap(
+  mat = scaled_mat,
+  color = colorRampPalette(c("navy","white","firebrick3"))(50),
+  cluster_rows = TRUE,
+  cluster_cols = TRUE,
+  show_rownames = TRUE,    # gene names
+  show_colnames = FALSE,   # hide cell IDs if many
+  main = "Cluster 0 vs 1 - Top Genes"
+)
+```
+```{r improvedPheatmap, message=FALSE, warning=FALSE}
+if (!requireNamespace("pheatmap", quietly=TRUE)) {
+  install.packages("pheatmap")
+}
+library(pheatmap)
+
+#########################
+# 1) Identify Cells in Each Cluster
+#########################
+cells_0 <- WhichCells(seu, idents=0)
+cells_1 <- WhichCells(seu, idents=1)
+
+# Downsample to 100 each (optional)
+if (length(cells_0) > 100) cells_0 <- sample(cells_0, 100)
+if (length(cells_1) > 100) cells_1 <- sample(cells_1, 100)
+
+cells_of_interest <- c(cells_0, cells_1)
+
+#########################
+# 2) Find Top Genes
+#########################
+markers_0_vs_1 <- FindMarkers(seu, ident.1=0, ident.2=1)
+
+top_genes_0 <- markers_0_vs_1 %>%
+  filter(p_val_adj < 0.01, avg_log2FC < 0) %>%
+  arrange(avg_log2FC) %>%
+  head(10) %>%
+  rownames()
+
+top_genes_1 <- markers_0_vs_1 %>%
+  filter(p_val_adj < 0.01, avg_log2FC > 0) %>%
+  arrange(-avg_log2FC) %>%
+  head(10) %>%
+  rownames()
+
+top20 <- c(top_genes_0, top_genes_1)
+
+#########################
+# 3) Extract & Subset Raw Counts
+#########################
+raw_mat <- GetAssayData(seu, slot="counts", assay="RNA")
+sub_mat <- raw_mat[top20, cells_of_interest, drop=FALSE]
+
+# Remove all-zero rows/columns
+rsum <- rowSums(sub_mat); keep_rows <- names(rsum)[rsum>0]
+csum <- colSums(sub_mat); keep_cols <- names(csum)[csum>0]
+sub_mat <- sub_mat[keep_rows, keep_cols, drop=FALSE]
+
+#########################
+# 4) Manual Log-Normalize & Scale
+#########################
+lib_size <- colSums(sub_mat)
+norm_mat <- sweep(sub_mat, 2, lib_size, FUN="/") * 1e4
+log_mat  <- log1p(norm_mat)
+
+scaled_mat <- t(scale(t(log_mat)))
+# Replace Inf/NaN with 0
+scaled_mat[!is.finite(scaled_mat)] <- 0
+# Cap extremes at ±2
+scaled_mat[scaled_mat >  2] <-  2
+scaled_mat[scaled_mat < -2] <- -2
+
+#########################
+# 5) Column Annotation (Which Cluster?)
+#########################
+# Make a small data frame telling pheatmap which cluster each column belongs to
+col_anno <- data.frame(
+  Cluster = ifelse(colnames(scaled_mat) %in% cells_0, "0", "1")
+)
+rownames(col_anno) <- colnames(scaled_mat)
+
+# Choose colors for each cluster
+anno_colors <- list(
+  Cluster = c("0" = "orangered", "1" = "skyblue")
+)
+
+#########################
+# 6) Final Heatmap with Tuning
+#########################
+pheatmap(
+  mat = scaled_mat,
+  color = colorRampPalette(c("navy","white","firebrick3"))(50),
+  cluster_rows = TRUE,     # cluster genes by similarity
+  cluster_cols = TRUE,     # cluster cells by similarity
+  show_rownames = TRUE,    # show gene names
+  show_colnames = FALSE,   # hide cell barcodes
+  annotation_col = col_anno,
+  annotation_colors = anno_colors,
+  main = "Cluster 0 vs 1: Top Genes",
+  fontsize_row = 10,       # bigger gene labels
+  treeheight_row = 50,     # dendrogram size for rows
+  treeheight_col = 50      # dendrogram size for columns
+)
+
+```
+
+```{r}
+###########################################################
+# COMPLETE WORKFLOW: Cluster, Identify Tumor vs. Normal,
+# Differential Expression, and Volcano Plot in ONE Code Chunk
+###########################################################
+
+library(Seurat)
+library(ggplot2)
+library(EnhancedVolcano)
+
+#-----------------------------
+# 1. Create/Load Your Seurat Object "seu"
+# (Replace this with your actual data-reading steps if needed.)
+#-----------------------------
+# We'll assume you already have a Seurat object named 'seu'
+# that contains all cells (tumor + normal) and that you've
+# done some basic QC steps.
+
+#-----------------------------
+# 2. Normalize, Find Variable Features, Scale, Run PCA
+#-----------------------------
+seu <- NormalizeData(seu)
+seu <- FindVariableFeatures(seu)
+seu <- ScaleData(seu)
+seu <- RunPCA(seu, npcs = 30)
+
+#-----------------------------
+# 3. Cluster the Cells (Unsupervised)
+#-----------------------------
+seu <- FindNeighbors(seu, dims = 1:10)
+seu <- FindClusters(seu, resolution = 0.5)
+seu <- RunUMAP(seu, dims = 1:10)  # optional, for visualization
+
+#-----------------------------
+# 4. Identify Which Clusters Are Cancer vs. Normal
+#    (Example logic: after checking marker genes or metadata.)
+#-----------------------------
+# Suppose we discover that cluster "0" is mostly normal cells
+# and cluster "1" is mostly cancer cells. We rename them accordingly.
+
+new.ids <- as.character(Idents(seu))
+new.ids[new.ids == "0"] <- "Normal_Cluster"
+new.ids[new.ids == "1"] <- "Cancer_Cluster"
+# The rest remain as is, but you could rename them if you like:
+# new.ids[new.ids == "2"] <- "Other_Cluster2"
+# etc.
+
+Idents(seu) <- new.ids
+
+#-----------------------------
+# 5. Run Differential Expression: Cancer vs. Normal
+#-----------------------------
+markers_cancer_vs_normal <- FindMarkers(
+  object = seu,
+  ident.1 = "Cancer_Cluster",
+  ident.2 = "Normal_Cluster",
+  logfc.threshold = 0.25,   # Adjust as needed
+  min.pct = 0.1,           # Adjust as needed
+  test.use = "wilcox"      # or 'MAST', 'DESeq2', etc.
+)
+
+#-----------------------------
+# 6. Generate a Volcano Plot
+#    Option A: Using EnhancedVolcano
+#-----------------------------
+EnhancedVolcano(
+  markers_cancer_vs_normal,
+  lab = rownames(markers_cancer_vs_normal),
+  x = 'avg_log2FC',
+  y = 'p_val_adj',
+  pCutoff = 0.05,     # Adjust significance cutoff
+  FCcutoff = 1.0,     # Adjust fold-change cutoff
+  title = 'Cancer vs. Normal',
+  subtitle = 'Cluster-Based Comparison'
+)
+
+#-----------------------------
+# 7. (Optional) Create a Volcano Plot with ggplot2
+#-----------------------------
+# If you prefer a more manual approach:
+
+# First, add a column classifying each gene:
+markers_cancer_vs_normal$Significance <- with(
+  markers_cancer_vs_normal,
+  ifelse(p_val_adj < 0.05 & abs(avg_log2FC) > 1, 
+         "p-value & Log2FC",
+  ifelse(p_val_adj < 0.05, 
+         "p-value",
+  ifelse(abs(avg_log2FC) > 1, 
+         "Log2FC", 
+         "NS")))
+)
+
+ggplot(
+  markers_cancer_vs_normal, 
+  aes(x = avg_log2FC, y = -log10(p_val_adj), color = Significance)
+) +
+  geom_point() +
+  scale_color_manual(values = c("p-value & Log2FC" = "red",
+                                "p-value" = "blue",
+                                "Log2FC" = "green",
+                                "NS" = "gray")) +
+  geom_vline(xintercept = c(-1, 1), linetype = "dashed") +
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed") +
+  labs(title = "Cancer vs. Normal (Cluster Comparison)",
+       x = "Average Log2 Fold Change",
+       y = "-log10 Adjusted P-value") +
+  theme_minimal()
+
+###########################################################
+# END OF SINGLE-CODE-CHUNK WORKFLOW
+###########################################################
+
+```
+
+
+```{r}
+###########################################################
+# SINGLE SCRIPT: From Data Input to Volcano Plot
+###########################################################
+
+# 1. Install & Load Libraries (if needed)
+if (!requireNamespace("Seurat", quietly = TRUE)) {
+  install.packages("Seurat")
+}
+if (!requireNamespace("ggplot2", quietly = TRUE)) {
+  install.packages("ggplot2")
+}
+if (!requireNamespace("ggrepel", quietly = TRUE)) {
+  install.packages("ggrepel")
+}
+if (!requireNamespace("patchwork", quietly = TRUE)) {
+  install.packages("patchwork")
+}
+if (!requireNamespace("EnhancedVolcano", quietly = TRUE)) {
+  install.packages("EnhancedVolcano")
+}
+
+library(Seurat)
+library(ggplot2)
+library(dplyr)
+library(ggrepel)
+library(EnhancedVolcano)
+library(patchwork)
+
+###########################################################
+# 2. Read Input Data: Path to your 10X "filtered_feature_bc_matrix" folder
+###########################################################
+data_dir <- "/Users/gui/Desktop/SingleNuclear_RNAseq"  # <-- Change this to your data folder
+counts.list <- Read10X(data.dir = data_dir)
+
+# Extract the gene expression matrix (assuming it’s called 'Gene Expression')
+gene.counts <- counts.list$`Gene Expression`
+
+# Create the Seurat object
+seu <- CreateSeuratObject(counts = gene.counts, project = "My_snRNA_Analysis")
+
+###########################################################
+# 3. Basic QC Filtering
+###########################################################
+# Annotate mitochondrial % (optional, if your species uses 'MT-' as prefix)
+seu[["percent.mt"]] <- PercentageFeatureSet(seu, pattern = "^MT-")
+
+# Example filtering thresholds: keep cells with 200–5000 genes & <5% mt
+seu <- subset(seu, subset = nFeature_RNA > 200 & nFeature_RNA < 5000 & percent.mt < 5)
+
+###########################################################
+# 4. Standard Workflow: Normalize, Find Variable Features,
+#    Scale, Run PCA
+###########################################################
+seu <- NormalizeData(seu)
+seu <- FindVariableFeatures(seu, selection.method = "vst", nfeatures = 2000)
+seu <- ScaleData(seu)
+seu <- RunPCA(seu, features = VariableFeatures(seu))  # By default uses top variable features
+
+###########################################################
+# 5. Cluster the Cells (Unsupervised)
+###########################################################
+seu <- FindNeighbors(seu, dims = 1:10)
+seu <- FindClusters(seu, resolution = 0.5)
+seu <- RunUMAP(seu, dims = 1:10)  # optional for visualization
+
+# Quick check: see how many clusters formed
+table(Idents(seu))
+
+###########################################################
+# 6. Rename Clusters to "Cancer_Cluster" and "Normal_Cluster"
+#    (Assuming you verified cluster "0" is normal, "1" is tumor)
+###########################################################
+# Make sure 'Idents(seu)' is indeed set to seurat_clusters
+# If not, do: Idents(seu) <- "seurat_clusters"
+new_ids <- as.character(Idents(seu))
+
+# If you discovered that cluster "0" is normal, "1" is cancer:
+new_ids[new_ids == "0"] <- "Normal_Cluster"
+new_ids[new_ids == "1"] <- "Cancer_Cluster"
+# The rest remain as numeric or rename them as you like
+
+Idents(seu) <- new_ids
+
+# Verify the new identity labels
+table(Idents(seu))
+
+###########################################################
+# 7. Differential Expression: Cancer_Cluster vs. Normal_Cluster
+###########################################################
+markers_cancer_vs_normal <- FindMarkers(
+  object = seu,
+  ident.1 = "Cancer_Cluster",
+  ident.2 = "Normal_Cluster",
+  logfc.threshold = 0.25,  # example
+  min.pct = 0.1,          # example
+  test.use = "wilcox"     # or "MAST", "DESeq2", etc.
+)
+
+# Convert rownames to a column for easier plotting
+markers_cancer_vs_normal <- markers_cancer_vs_normal %>%
+  mutate(gene = rownames(.))
+
+###########################################################
+# 8. Pick Genes to Label in the Volcano
+###########################################################
+# (A) A manual list of crucial genes:
+crucial_genes <- c("TP53", "EGFR", "BRCA1", "MYC")
+
+# (B) Or automatically pick top 10 up in cancer & top 10 up in normal
+top_up_in_cancer <- markers_cancer_vs_normal %>%
+  filter(avg_log2FC > 0) %>%
+  arrange(p_val_adj) %>%
+  slice_head(n = 10) %>%
+  pull(gene)
+
+top_up_in_normal <- markers_cancer_vs_normal %>%
+  filter(avg_log2FC < 0) %>%
+  arrange(p_val_adj) %>%
+  slice_head(n = 10) %>%
+  pull(gene)
+
+top_genes <- c(top_up_in_cancer, top_up_in_normal)
+
+# Combine them or pick just one set
+genes_to_label <- unique(c(crucial_genes, top_genes))
+
+###########################################################
+# 9. Create a Classification Column for Plotting
+###########################################################
+markers_cancer_vs_normal <- markers_cancer_vs_normal %>%
+  mutate(Significance = case_when(
+    p_val_adj < 0.05 & abs(avg_log2FC) > 1 ~ "p-value & Log2FC",
+    p_val_adj < 0.05                       ~ "p-value",
+    abs(avg_log2FC) > 1                    ~ "Log2FC",
+    TRUE                                   ~ "NS"
+  ))
+
+###########################################################
+# 10. Volcano Plot with ggplot2 + ggrepel
+###########################################################
+# Adjust figure size if in R Markdown: {r fig.width=10, fig.height=8}
+
+ggplot(markers_cancer_vs_normal, aes(x = avg_log2FC, y = -log10(p_val_adj))) +
+  # Points with color coding
+  geom_point(aes(color = Significance), size = 1.5, alpha = 0.6) +
+  scale_color_manual(values = c(
+    "p-value & Log2FC" = "red",
+    "p-value" = "blue",
+    "Log2FC" = "green",
+    "NS" = "gray"
+  )) +
+  
+  # Threshold lines
+  geom_vline(xintercept = c(-1, 1), linetype = "dashed") +
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed") +
+  
+  # Label the chosen genes
+  geom_text_repel(
+    data = subset(markers_cancer_vs_normal, gene %in% genes_to_label),
+    aes(label = gene),
+    size = 3,
+    max.overlaps = 15
+  ) +
+  
+  # Axes & Titles
+  xlim(c(-8, 8)) +    # Zoom out horizontally (adjust as needed)
+  ylim(c(0, 320)) +   # Adjust to fit the highest -log10 p-values
+  labs(
+    title = "Cancer vs. Normal (Cluster-based DE)",
+    x = "Average Log2 Fold Change",
+    y = "-log10 Adjusted P-value"
+  ) +
+  theme_bw(base_size = 14) +
+  theme(legend.position = "right")
+
+###########################################################
+# END
+###########################################################
+
+# NOTE: 
+# - If your tumor cluster is actually "2" or "3" or anything else, 
+#   change the rename lines accordingly.
+# - If your path/data format differ, adapt the data reading steps.
+# - If you already created 'seu' in a previous script, 
+#   you can skip the creation & QC steps above and just do the 
+#   clustering + DE + volcano portions.
+
+```
+```{r}
+# We'll assume you have a Seurat object called 'seu' 
+# where cells are labeled as "Cancer_Cluster" or "Normal_Cluster"
+# (similar to how you did the volcano plot).
+# This finds DEGs specifically between those groups.
+
+markers_cancer_vs_normal <- FindMarkers(
+  object = seu,
+  ident.1 = "Cancer_Cluster",
+  ident.2 = "Normal_Cluster",
+  logfc.threshold = 0.25,   # Adjust thresholds as appropriate
+  min.pct = 0.1,
+  test.use = "wilcox"
+)
+
+# Let's pick the top 20 genes up in cancer and top 20 up in normal
+# sorted by p-value. You can pick more or fewer.
+library(dplyr)
+
+top_up_in_cancer <- markers_cancer_vs_normal %>%
+  filter(avg_log2FC > 0) %>%
+  arrange(p_val_adj) %>%
+  slice_head(n = 20) %>%
+  rownames()
+
+top_up_in_normal <- markers_cancer_vs_normal %>%
+  filter(avg_log2FC < 0) %>%
+  arrange(p_val_adj) %>%
+  slice_head(n = 20) %>%
+  rownames()
+
+top_genes <- c(top_up_in_cancer, top_up_in_normal)
+
+```
+```{r}
+# Make sure the current identities are set so "Cancer_Cluster" and "Normal_Cluster"
+# are recognized. For example:
+# Idents(seu) <- "seurat_clusters" # or if you already renamed them, that's fine.
+# If you want to color cells by their cluster or by a metadata column, see below.
+
+# Plot the top genes in a heatmap
+DoHeatmap(
+  object = seu,
+  features = top_genes,       # the genes we just selected
+  group.by = NULL,            # or "ident" or a metadata column name, e.g. "condition"
+  label = TRUE
+) + scale_fill_gradient2(
+  low = "blue",
+  mid = "white",
+  high = "red"
+)
+
+```
+```{r}
+###########################################################
+# EXAMPLE: Creating a pheatmap of "Cancer vs. Normal" DE Genes
+###########################################################
+library(Seurat)
+library(dplyr)
+library(pheatmap)
+
+# 1) Identify DE genes between "Cancer_Cluster" and "Normal_Cluster"
+markers_cancer_vs_normal <- FindMarkers(
+  object = seu,
+  ident.1 = "Cancer_Cluster",  # Adjust if your cluster names differ
+  ident.2 = "Normal_Cluster",
+  logfc.threshold = 0.25,
+  min.pct = 0.1,
+  test.use = "wilcox"
+)
+
+# 2) Pick top genes (e.g., top 10 up in cancer + top 10 up in normal)
+top_up_in_cancer <- markers_cancer_vs_normal %>%
+  filter(avg_log2FC > 0) %>%
+  arrange(p_val_adj) %>%
+  slice_head(n = 10) %>%
+  rownames()
+
+top_up_in_normal <- markers_cancer_vs_normal %>%
+  filter(avg_log2FC < 0) %>%
+  arrange(p_val_adj) %>%
+  slice_head(n = 10) %>%
+  rownames()
+
+top_genes <- c(top_up_in_cancer, top_up_in_normal)
+
+# 3) Some genes may not be in the scale.data (especially if you used only top 2000 variable features)
+genes_in_scale_data <- rownames(GetAssayData(seu, slot = "scale.data"))
+missing_genes <- setdiff(top_genes, genes_in_scale_data)
+cat("Missing genes:\n", missing_genes, "\n")
+
+# 4) Filter out the missing genes so we only plot what's actually in scale.data
+top_genes_filtered <- intersect(top_genes, genes_in_scale_data)
+
+# 5) Extract the expression matrix for just those filtered genes
+mat <- GetAssayData(seu, slot = "scale.data")[top_genes_filtered, ]
+
+# 6) Prepare a column annotation labeling cells by their identity
+#    e.g., "Cancer_Cluster" vs "Normal_Cluster"
+ann <- data.frame(Condition = Idents(seu))
+rownames(ann) <- colnames(seu)
+
+# 7) Now create the heatmap
+pheatmap(
+  mat,
+  annotation_col = ann,
+  show_rownames = TRUE,
+  show_colnames = FALSE,      # or TRUE to display cell names
+  scale = "row",              # row-scaling is common for heatmaps
+  cluster_rows = TRUE,
+  cluster_cols = TRUE,
+  color = colorRampPalette(c("blue","white","red"))(100),
+  main = "Cancer vs. Normal (Filtered DE Genes)"
+)
+```
+```{r}
+###########################################################
+# TWO-GROUP HEATMAP: "Cancer" vs. "Normal"
+###########################################################
+library(Seurat)
+library(dplyr)
+library(pheatmap)
+
+# 1) Set up a new metadata column for clarity
+#    Make sure your cells are currently labeled as either "Cancer_Cluster" or "Normal_Cluster"
+#    in the Idents(seu). If not, rename them or do something similar first.
+seu$cancerNormal <- ifelse(Idents(seu) == "Cancer_Cluster", "Cancer", "Normal")
+
+# 2) Subset to only those two groups (ensures no leftover numeric clusters)
+sub_obj <- subset(seu, subset = cancerNormal %in% c("Cancer","Normal"))
+
+# 3) Make the 'cancerNormal' column the new active identity (optional but helpful)
+Idents(sub_obj) <- "cancerNormal"
+
+# 4) Find markers between "Cancer" and "Normal"
+markers_cancer_vs_normal <- FindMarkers(
+  object = sub_obj,
+  ident.1 = "Cancer",
+  ident.2 = "Normal",
+  logfc.threshold = 0.25,
+  min.pct = 0.1,
+  test.use = "wilcox"
+)
+
+# 5) Pick top genes (e.g. top 10 up in cancer + top 10 up in normal)
+top_up_in_cancer <- markers_cancer_vs_normal %>%
+  filter(avg_log2FC > 0) %>%
+  arrange(p_val_adj) %>%
+  slice_head(n = 10) %>%
+  rownames()
+
+top_up_in_normal <- markers_cancer_vs_normal %>%
+  filter(avg_log2FC < 0) %>%
+  arrange(p_val_adj) %>%
+  slice_head(n = 10) %>%
+  rownames()
+
+top_genes <- c(top_up_in_cancer, top_up_in_normal)
+
+# 6) Filter out any missing genes from scale.data
+genes_in_scale_data <- rownames(GetAssayData(sub_obj, slot = "scale.data"))
+top_genes_filtered <- intersect(top_genes, genes_in_scale_data)
+
+# 7) Extract the expression matrix for these top genes
+mat <- GetAssayData(sub_obj, slot = "scale.data")[top_genes_filtered, ]
+
+# 8) Create annotation_col with just two categories: "Cancer" or "Normal"
+ann <- data.frame(Group = sub_obj$cancerNormal)
+rownames(ann) <- colnames(sub_obj)
+
+# 9) Plot a clean heatmap
+pheatmap(
+  mat,
+  annotation_col = ann,
+  show_rownames = TRUE,
+  show_colnames = FALSE,
+  scale = "row",
+  cluster_rows = TRUE,
+  cluster_cols = TRUE,
+  color = colorRampPalette(c("blue","white","red"))(100),
+  main = "Cancer vs. Normal (Two-Group Heatmap)"
+)
+
+```
+```{r}
+# Install required packages if not already installed
+if (!requireNamespace("Seurat", quietly = TRUE)) install.packages("Seurat")
+if (!requireNamespace("ggplot2", quietly = TRUE)) install.packages("ggplot2")
+if (!requireNamespace("dplyr", quietly = TRUE)) install.packages("dplyr")
+
+# Load libraries
+library(Seurat)
+library(ggplot2)
+library(dplyr)
+```
+```{r}
+# Define the path to your Cell Ranger output
+data_dir <- "/Users/gui/Desktop/Single nuclear RNA sequencing results/filtered_feature_bc_matrix/"
+
+# Read the 10x Genomics data
+seurat_obj <- Read10X(data.dir = data_dir)
+
+# Create a Seurat object
+seurat_obj <- CreateSeuratObject(counts = seurat_obj, project = "snRNAseq")
+
+```
+```{r}
+dir.exists("/Users/gui/Desktop/Single nuclear RNA sequencing results/filtered_feature_bc_matrix/")
+
+```
+
+
+
+```{r}
+# 1) OA + MAG Overlap at 5mM
+df_oa_mag_5mm <- data.frame(
+  Gene = c("Angptl4", "Cpt1a", "Ido1", "Il17ra", 
+           "Plin2", "Mmp8", "Trpm1", "Notch4", "Rnf144b" 
+           # add more if you have them
+           ),
+  Function = c(
+    "Lipid metabolism, inflammation",
+    "Fatty acid oxidation",
+    "Immune regulation",
+    "Cytokine signaling",
+    "Lipid droplet formation",
+    "Matrix remodeling",
+    "Ion transport/sensing",
+    "Notch signaling",
+    "Protein degradation"
+    # matching your gene vector length
+  )
+)
+
+# 2) PA + MAG Overlap at 5mM
+df_pa_mag_5mm <- data.frame(
+  Gene = c("Acot10", "Bmx", "Dusp13", "Fosb",
+           "P2rx6", "Plppr3", "Tm6sf2", "Tnfrsf13c", "Slco4a1"),
+  Function = c(
+    "Fatty acid metabolism",
+    "Cell signaling/survival",
+    "MAPK phosphatase",
+    "Stress/immune transcription factor",
+    "Purinergic receptor",
+    "Phospholipid phosphatase",
+    "Cholesterol metabolism",
+    "TNF receptor superfamily",
+    "Solute carrier"
+  )
+)
+
+# Next, print both tables:
+
+datatable(df_oa_mag_5mm,
+          caption = 'OA + MAG Overlap (5mM)',
+          rownames = FALSE,
+          options = list(pageLength = 15))
+
+datatable(df_pa_mag_5mm,
+          caption = 'PA + MAG Overlap (5mM)',
+          rownames = FALSE,
+          options = list(pageLength = 15))
+
+```
+```{r}
+# If needed:
+# install.packages("DT")
+library(DT)
+
+# --------------------------------------------------
+# 1) OA + MAG Overlap at 500 μM
+# --------------------------------------------------
+df_oa_mag_500uM <- data.frame(
+  Gene = c("Cxcl11", "Alox12e", "Hdac11", "Acer2", "Aspn", "Adamts15"),
+  Function = c(
+    "Chemokine/inflammatory signaling",
+    "Fatty acid/lipid metabolism",
+    "Histone deacetylase, epigenetic regulation",
+    "Ceramidase/lipid metabolism",
+    "Extracellular matrix (ECM) remodeling",
+    "Matrix protease, ECM remodeling"
+  )
+)
+
+# Create interactive table for OA + MAG Overlap (500 μM)
+datatable(
+  df_oa_mag_500uM,
+  caption = "OA + MAG Overlap (500μM)",
+  rownames = FALSE,
+  options = list(pageLength = 10)
+)
+
+# --------------------------------------------------
+# 2) PA + MAG Overlap at 500 μM
+# --------------------------------------------------
+df_pa_mag_500uM <- data.frame(
+  Gene = c("Ccr6", "Fut1", "Gprc5b", "Wnt5b", "Sema3g",
+           "Serpinb10", "Rxfp2", "Lgr6"),
+  Function = c(
+    "Chemokine receptor (immune response)",
+    "Fucosyltransferase (glycosylation)",
+    "Cell signaling receptor, metabolic regulation",
+    "Wnt signaling, tissue remodeling",
+    "Semaphorin signaling, axon guidance/cell migration",
+    "Serine protease inhibitor (inflammation)",
+    "Relaxin receptor, reproductive/vascular function",
+    "Stem cell receptor, tissue remodeling"
+  )
+)
+
+# Create interactive table for PA + MAG Overlap (500 μM)
+datatable(
+  df_pa_mag_500uM,
+  caption = "PA + MAG Overlap (500μM)",
+  rownames = FALSE,
+  options = list(pageLength = 10)
+)
+
+```
+
+```{r}
+install.packages("DiagrammeR")
+library(DiagrammeR)
+
+
+```
+```{r}
+grViz("
+digraph multiomics {
+  graph [layout = dot, rankdir = TB]
+
+  node [shape=box, style=filled, color=black, fontname=\"Helvetica\"]
+
+  # Nodes
+  A [label=\"Adipose Tissue\\nMacrophages (Obesity)\", fillcolor=\"#ccb38b\"]
+  B [label=\"Spatial Lipidomics\\n(MALDI IMS)\\nMG/TG Hotspots\", fillcolor=\"#d2afff\"]
+  C [label=\"Bulk Lipidomics\\n(LC–MS)\\n(AA vs. 2-AG)\", fillcolor=\"#b3daff\"]
+  D [label=\"Transcriptomics\\n(RNA-seq)\\n(Macrophage DEGs)\", fillcolor=\"#cafec1\"]
+  
+  # Edges
+  # A -> B / A -> C are optional if you want to show that
+  # everything starts from 'Adipose Tissue Macrophages'
+  A -> B [label=\"(Optional) Tissue -> IMS\"]
+  A -> C [label=\"(Optional) Tissue -> LC–MS\"]
+
+  # Spatial -> Transcript
+  B -> D [label=\"Local MG/TG\\nvs. Gene Expression\"]
+  
+  # Bulk -> Transcript
+  C -> D [label=\"Lipid Abundance\\nvs. DE Genes\"]
+  
+  # Spatial <-> Bulk (two-way arrow)
+  B -> C [dir=\"both\" label=\"Compare MG/TG\\nHotspots & AA/2-AG\"]
+}
+")
+
+```
+```{r}
+# Install/Load DiagrammeR if not already done
+# install.packages("DiagrammeR")
+library(DiagrammeR)
+
+grViz("
+digraph multiomics {
+  graph [layout = dot, rankdir = TB]
+
+  node [shape=box, style=filled, color=black, fontname=\"Helvetica\"]
+
+  # Nodes
+  A [label=\"Adipose Tissue\\nMacrophages (Obesity)\", fillcolor=\"#ccb38b\"]
+  B [label=\"Spatial Lipidomics\\n(MALDI IMS)\\nMG/TG Hotspots\\n(Figs 9 & 10)\", fillcolor=\"#d2afff\"]
+  C [label=\"Bulk Lipidomics\\n(LC–MS)\\n(AA vs. 2-AG)\\n(Figs 11–13)\", fillcolor=\"#b3daff\"]
+  D [label=\"Transcriptomics\\n(RNA-seq)\\n(Macrophage DEGs)\\n(Figs 3–8)\", fillcolor=\"#cafec1\"]
+  
+  # Edges (Arrows) with figure references:
+  
+  # (Optional) Tissue -> IMS
+  A -> B [label=\"Tissue -> IMS\\nUses Figs 9,10 outputs\"]
+  
+  # (Optional) Tissue -> LC-MS
+  A -> C [label=\"Tissue -> LC–MS\\nRelates to Figs 11–13\"]
+  
+  # Spatial <-> Bulk (two-way arrow):
+  # Compare local MG/TG (Figs 9,10) with global AA vs. 2-AG (Figs 11–13)
+  B -> C [dir=\"both\", label=\"Compare local MG/TG\\n(Figs 9,10) vs.\\nGlobal data (Figs 11–13)\"] 
+  
+  # Spatial -> Transcript:
+  # If there's no direct figure, mention 'See Discussion' or keep it conceptual
+  B -> D [label=\"Local MG/TG vs. Genes\\n(No direct fig, see Discussion)\"] 
+  
+  # Bulk -> Transcript:
+  # DE Genes (Figs 3–8) vs. Lipid Abundance (Figs 11–13)
+  C -> D [label=\"Lipid Abundance vs. DE Genes\\n(Figs 3–8 vs. 11–13)\"] 
+}
+")
+
+```
+
+```{r}
+library(DiagrammeR)
+
+grViz("
+digraph Figure1 {
+  # use neato for free‑form placement, force curved splines
+  graph [layout = neato, overlap = false, splines = curved]
+
+  node [
+    shape     = box
+    style     = filled
+    fontname  = Helvetica
+    fontsize  = 10
+    penwidth  = 1.5
+  ]
+
+  # 1) Top: Transcriptomics
+  Tx [
+    label     = <<TABLE BORDER='0' CELLPADDING='4'>
+                  <TR><TD><B>Transcriptomics</B></TD></TR>
+                  <TR><TD>(RNA‑seq)</TD></TR>
+                  <TR><TD>Macrophage DEGs</TD></TR>
+                  <TR><TD>Figs 3–8</TD></TR>
+                </TABLE>>
+    fillcolor = \"#DDFFE1\"
+    pos       = \"0,4!\"
+  ]
+
+  # 2) Middle hub
+  Hub [
+    label     = <<TABLE BORDER='0' CELLPADDING='4'>
+                  <TR><TD><B>Adipose‑Tissue<br/>Macrophages (Obesity)</B></TD></TR>
+                </TABLE>>
+    fillcolor = \"#FFF2A8\"
+    pos       = \"0,2!\"
+  ]
+
+  # 3) Bottom‑left: Bulk
+  Bulk [
+    label     = <<TABLE BORDER='0' CELLPADDING='4'>
+                  <TR><TD><B>Bulk Lipidomics</B></TD></TR>
+                  <TR><TD>(LC–MS)</TD></TR>
+                  <TR><TD>AA vs 2‑AG</TD></TR>
+                  <TR><TD>Figs 11–13</TD></TR>
+                </TABLE>>
+    fillcolor = \"#B7D9FF\"
+    pos       = \"-3,0!\"
+  ]
+
+  # 4) Bottom‑right: Spatial
+  Spatial [
+    label     = <<TABLE BORDER='0' CELLPADDING='4'>
+                  <TR><TD><B>Spatial Lipidomics</B></TD></TR>
+                  <TR><TD>(MALDI‑IMS)</TD></TR>
+                  <TR><TD>MG/TG Hotspots</TD></TR>
+                  <TR><TD>Figs 9–10</TD></TR>
+                </TABLE>>
+    fillcolor = \"#E7C8FF\"
+    pos       = \"3,0!\"
+  ]
+
+  # ——— Edges ———
+  # Hub → Transcriptomics
+  Hub -> Tx [
+    label     = \"Tissue → RNA‑seq\"
+    fontsize  = 8
+    arrowhead = vee
+    tailport  = n
+    headport  = s
+  ]
+
+  # Hub → Bulk
+  Hub -> Bulk [
+    label     = \"Tissue → LC–MS\"
+    fontsize  = 8
+    arrowhead = vee
+    tailport  = sw
+    headport  = n
+  ]
+
+  # Hub → Spatial
+  Hub -> Spatial [
+    label     = \"Tissue → IMS\"
+    fontsize  = 8
+    arrowhead = vee
+    tailport  = se
+    headport  = n
+  ]
+
+  # Transcriptomics ↔ Bulk (curved)
+  Tx -> Bulk [
+    dir           = both
+    label         = \"Lipids ↔ DE Genes\"
+    fontsize      = 8
+    arrowhead     = vee
+    arrowtail     = vee
+    tailport      = w
+    headport      = ne
+    constraint    = false
+  ]
+
+  # Transcriptomics ↔ Spatial (curved)
+  Tx -> Spatial [
+    dir           = both
+    label         = \"Genes ↔ Localization\"
+    fontsize      = 8
+    arrowhead     = vee
+    arrowtail     = vee
+    tailport      = e
+    headport      = nw
+    constraint    = false
+  ]
+
+  # Bulk ↔ Spatial (curved bottom)
+  Bulk -> Spatial [
+    dir           = both
+    label         = \"Compare local MG/TG ↔ Global data\"
+    fontsize      = 8
+    arrowhead     = vee
+    arrowtail     = vee
+    tailport      = s
+    headport      = s
+    constraint    = false
+  ]
+}
+")
+
+```
+
+```{r}
+library(DiagrammeR)
+
+grViz("
+digraph AnalysisFigure1 {
+  # Use neato so we can place nodes exactly
+  graph [layout = neato, overlap = false, splines = true]
+
+  # Common node style
+  node [
+    shape     = box
+    style     = filled
+    fontname  = Helvetica
+    fontsize  = 10
+    penwidth  = 1
+    width     = 3
+    height    = 1
+  ]
+
+  # 1) Central hub at (0,0)
+  Hub [
+    label     = <<B>Adipose Tissue\n Macrophages (Obesity)</B>>
+    fillcolor = \"#FFEE99\"
+    pos       = \"0,0!\"
+  ]
+
+  # 2) Three omic corners
+  Transcriptomics [
+    label     = \"Transcriptomics\n(RNA‑seq)\nMacrophage DEGs\nFigs 3–8\"
+    fillcolor = \"#cafec1\"
+    pos       = \"0,2!\"
+  ]
+  Bulk [
+    label     = \"Bulk Lipidomics\n(LC–MS)\nAA vs 2‑AG\nFigs 11–13\"
+    fillcolor = \"#b3daff\"
+    pos       = \"-2,-2!\"
+  ]
+  Spatial [
+    label     = \"Spatial Lipidomics\n(MALDI‑IMS)\nMG/TG Hotspots\nFigs 9–10\"
+    fillcolor = \"#d2afff\"
+    pos       = \"2,-2!\"
+  ]
+
+  # 3) Spokes from hub to each corner
+  Hub -> Transcriptomics [
+    label     = \"Tissue → RNA‑seq\"
+    fontsize  = 8
+    arrowhead = vee
+  ]
+  Hub -> Bulk [
+    label     = \"Tissue → LC–MS\"
+    fontsize  = 8
+    arrowhead = vee
+  ]
+  Hub -> Spatial [
+    label     = \"Tissue → IMS\"
+    fontsize  = 8
+    arrowhead = vee
+  ]
+
+  # 4) Triangle edges (bidirectional)
+  Transcriptomics -> Bulk [
+    dir        = both
+    label      = \"Lipids ↔ DE Genes\"
+    fontsize   = 8
+    arrowhead  = vee
+    constraint = false
+  ]
+  Bulk -> Spatial [
+    dir        = both
+    label      = \"Compare local MG/TG ↔ Global data\"
+    fontsize   = 8
+    arrowhead  = vee
+    constraint = false
+  ]
+  Spatial -> Transcriptomics [
+    dir        = both
+    label      = \"Genes ↔ Localization\"
+    fontsize   = 8
+    arrowhead  = vee
+    constraint = false
+  ]
+}
+")
+
+```
+
+```{r}
+library(DiagrammeR)
+
+grViz("
+digraph AnalysisFigure1 {
+  graph [layout = neato
+         splines = curved
+         overlap = false]
+
+  node [
+    shape     = box
+    style     = filled
+    fontname  = Helvetica
+    fontsize  = 14
+    penwidth  = 1.2
+    width     = 2.5
+    height    = 0.8
+  ]
+
+  # Top node
+  Transcriptomics [
+    label     = \"Transcriptomics\n(RNA‑seq)\nMacrophage DEGs\nFigs 3–8\"
+    fillcolor = \"#D0F0C0\"
+    pos       = \"0,3.5!\"
+  ]
+
+  # Central hub
+  Hub [
+    label     = \"Adipose Tissue\nMacrophages (Obesity)\"
+    fillcolor = \"#FFEE99\"
+    pos       = \"0,1!\"
+  ]
+
+  # Bottom corners
+  Bulk [
+    label     = \"Bulk Lipidomics\n(LC–MS)\nAA vs 2‑AG\nFigs 11–13\"
+    fillcolor = \"#C0D0FF\"
+    pos       = \"-3,-1.5!\"
+  ]
+  Spatial [
+    label     = \"Spatial Lipidomics\n(MALDI‑IMS)\nMG/TG Hotspots\nFigs 9–10\"
+    fillcolor = \"#F0C0FF\"
+    pos       = \"3,-1.5!\"
+  ]
+
+  # Hub → omics spokes
+  Hub -> Transcriptomics [
+    label     = \"Tissue → RNA‑seq\"
+    fontsize  = 12
+    arrowhead = vee
+  ]
+  Hub -> Bulk [
+    label     = \"Tissue → LC–MS\"
+    fontsize  = 12
+    arrowhead = vee
+  ]
+  Hub -> Spatial [
+    label     = \"Tissue → IMS\"
+    fontsize  = 12
+    arrowhead = vee
+  ]
+
+  # Triangle edges
+  Transcriptomics -> Bulk [
+    dir        = both
+    arrowhead  = vee
+    arrowtail  = vee
+    label      = \"Lipids ↔ DE Genes\"
+    fontsize   = 12
+    constraint = false
+  ]
+  Bulk -> Spatial [
+    dir        = both
+    arrowhead  = vee
+    arrowtail  = vee
+    label      = \"Compare local MG/TG ↔ Global data\"
+    fontsize   = 12
+    constraint = false
+    len        = 2.0
+  ]
+  Spatial -> Transcriptomics [
+    dir        = both
+    arrowhead  = vee
+    arrowtail  = vee
+    label      = \"Genes ↔ Localization\"
+    fontsize   = 12
+    constraint = false
+  ]
+}
+")
+
+```
+
+
+```{r}
+```{r, echo=FALSE}
+library(DiagrammeR)
+
+grViz("
+digraph AnalysisFigure1 {
+  # 1) Neato + splines, no overlap
+  graph [layout = neato, splines = true, overlap = false]
+
+  # 2) Default node style
+  node [
+    shape     = box
+    style     = filled
+    fontname  = Helvetica
+    fontsize  = 10
+    penwidth  = 1
+    margin    = \"0.2,0.1\"
+  ]
+
+  # 3) Nodes placed manually with pos = \"x,y!\"
+  Transcriptomics [
+    label     = \"Transcriptomics\n(RNA‑seq)\nMacrophage DEGs\nFigs 3–8\"
+    fillcolor = \"#cafec1\"
+    pos       = \"0,4!\"
+  ]
+  Hub [
+    label     = \"Adipose Tissue\nMacrophages (Obesity)\"
+    fillcolor = \"#FFEE99\"
+    pos       = \"0,2!\"
+  ]
+  Bulk [
+    label     = \"Bulk Lipidomics\n(LC–MS)\nAA vs 2‑AG\nFigs 11–13\"
+    fillcolor = \"#b3daff\"
+    pos       = \"-3,0!\"
+  ]
+  Spatial [
+    label     = \"Spatial Lipidomics\n(MALDI‑IMS)\nMG/TG Hotspots\nFigs 9–10\"
+    fillcolor = \"#d2afff\"
+    pos       = \"3,0!\"
+  ]
+
+  # 4) Spokes from the hub
+  Hub -> Transcriptomics [
+    label         = \"\"
+    headlabel     = \"Tissue → RNA‑seq\"
+    labelfloat    = true
+    labeldistance = 1.2
+    labelangle    = 90
+    arrowhead     = vee
+    fontsize      = 8
+  ]
+  Hub -> Bulk [
+    label         = \"\"
+    headlabel     = \"Tissue → LC–MS\"
+    labelfloat    = true
+    labeldistance = 1.2
+    labelangle    = 200
+    arrowhead     = vee
+    fontsize      = 8
+  ]
+  Hub -> Spatial [
+    label         = \"\"
+    headlabel     = \"Tissue → IMS\"
+    labelfloat    = true
+    labeldistance = 1.2
+    labelangle    = -20
+    arrowhead     = vee
+    fontsize      = 8
+  ]
+
+  # 5) Triangle edges
+  Transcriptomics -> Bulk [
+    dir           = both
+    label         = \"\"
+    headlabel     = \"Lipids ↔ DE Genes\"
+    labelfloat    = true
+    labeldistance = 1.5
+    labelangle    = 200
+    arrowhead     = vee
+    arrowtail     = vee
+    fontsize      = 8
+    constraint    = false
+  ]
+
+  Bulk -> Spatial [
+    dir           = both
+    label         = \"\"
+    headlabel     = \"Global data\"
+    taillabel     = \"Compare local MG/TG\"
+    labelfloat    = true
+    labeldistance = 2.5
+    labelangle    = 0
+    arrowhead     = vee
+    arrowtail     = vee
+    fontsize      = 8
+    len           = 5.0
+    constraint    = false
+    tailport      = south
+    headport      = south
+  ]
+
+  Spatial -> Transcriptomics [
+    dir           = both
+    label         = \"\"
+    headlabel     = \"Genes ↔ Localization\"
+    labelfloat    = true
+    labeldistance = 1.5
+    labelangle    = -20
+    arrowhead     = vee
+    arrowtail     = vee
+    fontsize      = 8
+    constraint    = false
+  ]
+}
+ 3
+```
+
