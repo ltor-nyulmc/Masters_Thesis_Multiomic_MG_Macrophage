@@ -1,0 +1,103 @@
+5mm
+```{r}
+
+# Load required libraries
+if (!require("VennDiagram")) {
+  install.packages("VennDiagram")
+}
+if (!require("readxl")) {
+  install.packages("readxl")
+}
+if (!require("openxlsx")) {
+  install.packages("openxlsx")
+}
+if (!require("tidyverse")) {
+  install.packages("tidyverse")
+}
+library(VennDiagram)
+library(readxl)
+library(openxlsx)
+library(tidyverse)
+
+# Set your working directory to the new folder
+setwd("/Users/gui/Desktop/ALEMAN VENN DIAGRAM 5")
+
+# Verify the working directory
+getwd()  # This should return "/Users/gui/Desktop/ALEMAN VENN DIAGRAM 5"
+
+# Read the .xlsx files from the new folder
+G5vG6 <- read_excel("/Users/gui/Desktop/ALEMAN VENN DIAGRAM 5/DEseq2Results_Pval-0.05-fold2G5vG6.xlsx")
+G5vG7 <- read_excel("/Users/gui/Desktop/ALEMAN VENN DIAGRAM 5/DEseq2Results_Pval-0.05-fold2G5vG7.xlsx")
+G5vG8 <- read_excel("/Users/gui/Desktop/ALEMAN VENN DIAGRAM 5/DEseq2Results_Pval-0.05-fold2G5vG8.xlsx")
+
+# Filter for upregulated and downregulated genes separately based on log2FoldChange
+# Upregulated: log2FoldChange > 0
+upregulated_G5vG6 <- G5vG6 %>% filter(log2FoldChange > 0) %>% pull(row)
+upregulated_G5vG7 <- G5vG7 %>% filter(log2FoldChange > 0) %>% pull(row)
+upregulated_G5vG8 <- G5vG8 %>% filter(log2FoldChange > 0) %>% pull(row)
+
+# Downregulated: log2FoldChange < 0
+downregulated_G5vG6 <- G5vG6 %>% filter(log2FoldChange < 0) %>% pull(row)
+downregulated_G5vG7 <- G5vG7 %>% filter(log2FoldChange < 0) %>% pull(row)
+downregulated_G5vG8 <- G5vG8 %>% filter(log2FoldChange < 0) %>% pull(row)
+
+# Define function to generate Venn diagrams and return gene lists
+generate_venn_and_lists <- function(gene_list1, gene_list2, gene_list3, comparison_names, output_file, diagram_title) {
+  
+  # Create the Venn diagram and save it to file
+  venn.plot <- venn.diagram(
+    x = list(gene_list1, gene_list2, gene_list3),
+    category.names = comparison_names,
+    filename = output_file,  # Save to the specified file path
+    output = TRUE,
+    fill = c("red", "blue", "green"),
+    alpha = 0.5,
+    cex = 2,
+    cat.cex = 2,
+    main = diagram_title
+  )
+  
+  # Generate the intersections of the gene lists
+  venn_list <- get.venn.partitions(list(gene_list1, gene_list2, gene_list3))
+  
+  # Return the Venn diagram list
+  return(venn_list)
+}
+
+# Define comparison names and titles for Venn diagrams
+comparison_names <- c("Control vs MAG", "Control vs OA", "Control vs PA")
+title_up <- "Upregulated Genes: Control vs MAG, OA, PA"
+title_down <- "Downregulated Genes: Control vs MAG, OA, PA"
+
+# Generate Venn diagrams and save them for upregulated and downregulated genes
+output_file_up <- "/Users/gui/Desktop/ALEMAN VENN DIAGRAM 5/venn_diagram_upregulated.png"
+output_file_down <- "/Users/gui/Desktop/ALEMAN VENN DIAGRAM 5/venn_diagram_downregulated.png"
+
+# Generate upregulated gene venn diagram
+venn_list_up <- generate_venn_and_lists(upregulated_G5vG6, upregulated_G5vG7, upregulated_G5vG8, comparison_names, output_file_up, title_up)
+
+# Generate downregulated gene venn diagram
+venn_list_down <- generate_venn_and_lists(downregulated_G5vG6, downregulated_G5vG7, downregulated_G5vG8, comparison_names, output_file_down, title_down)
+
+# Create Excel file for filtered gene lists and ensure genes are in separate rows
+convert_to_excel <- function(venn_list, output_excel) {
+  venn_df <- venn_list %>% 
+    unnest(cols = c(..values..))  # Ensure genes are un-nested into separate rows
+  
+  # Save the formatted gene list to an Excel file
+  write.xlsx(venn_df, output_excel)
+}
+
+# Define Excel output files for upregulated and downregulated genes
+output_excel_up <- "/Users/gui/Desktop/ALEMAN VENN DIAGRAM 5/Filtered_Gene_Lists_Upregulated.xlsx"
+output_excel_down <- "/Users/gui/Desktop/ALEMAN VENN DIAGRAM 5/Filtered_Gene_Lists_Downregulated.xlsx"
+
+# Save the upregulated and downregulated gene lists in separate Excel files
+convert_to_excel(venn_list_up, output_excel_up)
+convert_to_excel(venn_list_down, output_excel_down)
+
+# Print confirmation
+cat("Venn diagrams and gene lists have been successfully created and saved to /Users/gui/Desktop/ALEMAN VENN DIAGRAM 5\n")
+
+```
+
