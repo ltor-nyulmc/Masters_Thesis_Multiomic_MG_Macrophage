@@ -1,0 +1,340 @@
+PCA PLOTS
+
+```{r}
+# Load necessary libraries
+library(tidyverse)
+library(factoextra)
+
+# Define the file path
+file_path <- "/Users/gui/Desktop/Normalized_VSD_1.csv"
+
+# Load the dataset
+vsd_data <- read_csv(file_path)
+
+# Filter only the columns for 500 µM condition, grouping them by Group 1 to Group 4
+data_500uM <- vsd_data %>% select(gene, G1_J7_1_S1.txt:G4_J7_12_S12.txt)
+
+# Transpose the data so that samples are rows and genes are columns
+data_matrix <- as.data.frame(t(data_500uM[,-1]))
+colnames(data_matrix) <- data_500uM$gene
+
+# Define groups for each sample (assuming 3 samples per group)
+sample_groups <- c(rep("Group 1", 3), rep("Group 2", 3), rep("Group 3", 3), rep("Group 4", 3))
+
+# Perform PCA
+pca_result <- prcomp(data_matrix, scale. = TRUE)
+
+# Convert PCA result to a data frame for plotting
+pca_data <- as.data.frame(pca_result$x)
+pca_data$Group <- sample_groups  # Add the group information
+
+# Plot the PCA
+ggplot(pca_data, aes(x = PC1, y = PC2, color = Group)) +
+  geom_point(size = 3) +
+  ggtitle("PCA Plot: 500 µM Condition") +
+  xlab(paste("PC1 (", round(summary(pca_result)$importance[2, 1] * 100, 1), "%)", sep = "")) +
+  ylab(paste("PC2 (", round(summary(pca_result)$importance[2, 2] * 100, 1), "%)", sep = "")) +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+```{r}
+# Load necessary libraries
+library(tidyverse)
+library(factoextra)
+
+# Define the file path
+file_path <- "/Users/gui/Desktop/Normalized_VSD_1.csv"
+
+# Load the dataset
+vsd_data <- read_csv(file_path)
+
+# Filter only the columns for 500 µM condition, grouping them by Group 1 to Group 4
+data_500uM <- vsd_data %>% select(gene, G1_J7_1_S1.txt:G4_J7_12_S12.txt)
+
+# Transpose the data so that samples are rows and genes are columns
+data_matrix <- as.data.frame(t(data_500uM[,-1]))
+colnames(data_matrix) <- data_500uM$gene
+
+# Check variance and filter for high variance genes (optional, adjust threshold as needed)
+high_variance_genes <- apply(data_matrix, 2, var) > 1  # Filter genes with variance > 1
+data_matrix <- data_matrix[, high_variance_genes]
+
+# Define groups for each sample (assuming 3 samples per group)
+sample_groups <- c(rep("Group 1", 3), rep("Group 2", 3), rep("Group 3", 3), rep("Group 4", 3))
+
+# Perform PCA
+pca_result <- prcomp(data_matrix, scale. = TRUE, center = TRUE)  # Ensure centering
+
+# Convert PCA result to a data frame for plotting
+pca_data <- as.data.frame(pca_result$x)
+pca_data$Group <- sample_groups  # Add the group information
+
+# Plot the PCA
+ggplot(pca_data, aes(x = PC1, y = PC2, color = Group)) +
+  geom_point(size = 3) +
+  ggtitle("PCA Plot: 500 µM Condition") +
+  xlab(paste("PC1 (", round(summary(pca_result)$importance[2, 1] * 100, 1), "%)", sep = "")) +
+  ylab(paste("PC2 (", round(summary(pca_result)$importance[2, 2] * 100, 1), "%)", sep = "")) +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+```{r}
+# Load necessary libraries
+library(dplyr)
+library(ggplot2)
+library(factoextra)
+
+# Step 1: Filter for the 500 µM condition and retain the 'gene' column
+vsd_data_filtered <- vsd_data %>%
+  select(gene, starts_with("G1_"), starts_with("G2_"), starts_with("G3_"), starts_with("G4_")) %>%
+  # Calculate variance across only numeric columns
+  rowwise() %>%
+  mutate(variance = var(c_across(where(is.numeric)))) %>% # Only numeric columns for variance calculation
+  ungroup() %>%
+  filter(!is.na(variance) & variance > 0) %>%  # Filter out rows with zero or NA variance
+  arrange(desc(variance)) %>%
+  slice_head(n = 500)  # Select the top 500 most variable genes (adjust if needed)
+
+# Step 2: Transpose data for PCA (samples as rows, genes as columns)
+top_genes <- vsd_data_filtered %>%
+  select(-gene, -variance) %>%
+  t() %>%
+  as.data.frame()
+
+# Step 3: Create a grouping vector for color coding
+# Assuming each group has three replicates as shown in the previous structure
+group_labels <- rep(c("Group 1", "Group 2", "Group 3", "Group 4"), each = 3)
+
+# Step 4: Perform PCA on the transposed data
+pca_result <- prcomp(top_genes, scale. = TRUE)
+
+# Step 5: Create the PCA plot
+fviz_pca_ind(pca_result,
+             geom.ind = "point",
+             col.ind = group_labels,  # Use the grouping vector here
+             palette = c("red", "green", "blue", "purple"),
+             addEllipses = TRUE,
+             legend.title = "Group") +
+  ggtitle("PCA Plot: 500 µM Condition with Top 500 Genes")
+
+```
+```{r}
+# Load necessary libraries
+library(ggplot2)
+library(factoextra)
+library(ggrepel)
+library(dplyr)
+
+# Select the top 500 genes (based on variability) for the 500 µM condition manually
+# We assume the following are the relevant columns for 500 µM:
+relevant_columns <- c("G1_J7_1_S1.txt", "G1_J7_2_S2.txt", "G1_J7_3_S3.txt",
+                      "G2_J7_4_S4.txt", "G2_J7_5_S5.txt", "G2_J7_6_S6.txt",
+                      "G3_J7_7_S7.txt", "G3_J7_8_S8.txt", "G3_J7_9_S9.txt",
+                      "G4_J7_10_S10.txt", "G4_J7_11_S11.txt", "G4_J7_12_S12.txt")
+
+# Filter the data to keep only the 12 selected columns
+vsd_data_filtered <- vsd_data %>%
+  select(gene, all_of(relevant_columns))
+
+# Remove the gene column, as we need only numeric data for PCA
+top_genes <- vsd_data_filtered %>%
+  select(-gene) %>%       # Exclude gene column
+  slice_head(n = 500)     # Select the top 500 genes for analysis
+
+# Transpose the data to make samples rows
+top_genes_transposed <- as.data.frame(t(top_genes))
+
+# Set row names to sample names (12 samples)
+rownames(top_genes_transposed) <- relevant_columns
+
+# Perform PCA on the transposed data
+pca_result <- prcomp(top_genes_transposed, scale. = TRUE)
+
+# Prepare PCA data frame for plotting
+pca_data <- as.data.frame(pca_result$x)
+pca_data$Group <- rep(c("Group 1", "Group 2", "Group 3", "Group 4"), each = 3)  # Assign groups
+pca_data$Sample <- rownames(pca_data)  # Label samples
+
+# Plot the PCA with labeled points
+ggplot(pca_data, aes(x = PC1, y = PC2, color = Group, shape = Group, label = Sample)) +
+  geom_point(size = 3) +
+  geom_text_repel(size = 3, max.overlaps = 12) +  # Label each point with sample name
+  labs(title = "PCA Plot: 500 μM Condition with Top 500 Genes",
+       x = paste0("PC1 (", round(summary(pca_result)$importance[2,1] * 100, 1), "%)"),
+       y = paste0("PC2 (", round(summary(pca_result)$importance[2,2] * 100, 1), "%)")) +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+```{r}
+# Load required libraries
+library(tidyverse)
+library(factoextra)
+library(ggplot2)
+library(ggrepel)
+
+# Define the file path
+file_path <- "/Users/gui/Desktop/Normalized_VSD_1.csv"
+
+# Load the dataset
+vsd_data <- read_csv(file_path)
+
+# Filter for the 500 µM condition only (Columns B-M)
+vsd_data_filtered <- vsd_data %>% 
+  select(gene, starts_with("G1_"), starts_with("G2_"), starts_with("G3_"), starts_with("G4_"))
+
+# Calculate variance for each gene and select the top 500 genes with the highest variance
+top_genes <- vsd_data_filtered %>%
+  rowwise() %>%
+  mutate(variance = var(c_across(where(is.numeric)), na.rm = TRUE)) %>%  # Use only numeric columns
+  ungroup() %>%
+  arrange(desc(variance)) %>%
+  slice_head(n = 500) %>%
+  select(-variance)
+
+# Transpose the data matrix to have samples as rows and genes as columns
+top_genes_matrix <- as.matrix(top_genes %>% select(-gene))
+top_genes_matrix <- t(top_genes_matrix)  # Transpose the matrix
+
+# Perform PCA
+pca_result <- prcomp(top_genes_matrix, scale. = TRUE)
+
+# Prepare data for plotting
+pca_data <- data.frame(PC1 = pca_result$x[, 1], PC2 = pca_result$x[, 2],
+                       Sample = rownames(pca_result$x))
+
+# Add Group labels based on sample names
+pca_data <- pca_data %>%
+  mutate(Group = case_when(
+    str_detect(Sample, "G1") ~ "Group 1",
+    str_detect(Sample, "G2") ~ "Group 2",
+    str_detect(Sample, "G3") ~ "Group 3",
+    str_detect(Sample, "G4") ~ "Group 4"
+  ))
+
+# Plot PCA with clear labels
+ggplot(pca_data, aes(x = PC1, y = PC2, color = Group, shape = Group, label = Sample)) +
+  geom_point(size = 3) +
+  geom_text_repel() +
+  theme_minimal() +
+  labs(title = "PCA Plot: 500 µM Condition with Top 500 Genes", 
+       x = paste0("PC1 (", round(summary(pca_result)$importance[2, 1] * 100, 1), "%)"), 
+       y = paste0("PC2 (", round(summary(pca_result)$importance[2, 2] * 100, 1), "%)"))
+
+```
+```{r}
+# Load required libraries
+library(tidyverse)
+library(factoextra)
+library(ggplot2)
+library(ggrepel)
+
+# Define the file path
+file_path <- "/Users/gui/Desktop/Normalized_VSD_1.csv"
+
+# Load the dataset
+vsd_data <- read_csv(file_path)
+
+# Filter for the 500 µM condition only (Columns B-M)
+vsd_data_filtered <- vsd_data %>% 
+  select(gene, starts_with("G1_"), starts_with("G2_"), starts_with("G3_"), starts_with("G4_"))
+
+# Calculate variance for each gene and select the top 500 genes with the highest variance
+top_genes <- vsd_data_filtered %>%
+  rowwise() %>%
+  mutate(variance = var(c_across(where(is.numeric)), na.rm = TRUE)) %>%
+  ungroup() %>%
+  arrange(desc(variance)) %>%
+  slice_head(n = 500) %>%
+  select(-variance)
+
+# Transpose the data matrix to have samples as rows and genes as columns
+top_genes_matrix <- as.matrix(top_genes %>% select(-gene))
+top_genes_matrix <- t(top_genes_matrix)
+
+# Perform PCA
+pca_result <- prcomp(top_genes_matrix, scale. = TRUE)
+
+# Prepare data for plotting
+pca_data <- data.frame(PC1 = pca_result$x[, 1], PC2 = pca_result$x[, 2],
+                       Sample = rownames(pca_result$x))
+
+# Add new Group labels based on sample names
+pca_data <- pca_data %>%
+  mutate(Group = case_when(
+    str_detect(Sample, "G1") ~ "Control",
+    str_detect(Sample, "G2") ~ "MAG",
+    str_detect(Sample, "G3") ~ "OA",
+    str_detect(Sample, "G4") ~ "PA"
+  ))
+
+# Plot PCA with updated group names as labels
+ggplot(pca_data, aes(x = PC1, y = PC2, color = Group, shape = Group, label = Group)) +
+  geom_point(size = 3) +
+  geom_text_repel() +
+  scale_shape_manual(values = c("Control" = 16, "MAG" = 17, "OA" = 15, "PA" = 18)) +  # 18 is diamond shape for PA
+  theme_minimal() +
+  labs(title = "PCA Plot: 500 µM Condition with Top 500 Genes", 
+       x = paste0("PC1 (", round(summary(pca_result)$importance[2, 1] * 100, 1), "%)"), 
+       y = paste0("PC2 (", round(summary(pca_result)$importance[2, 2] * 100, 1), "%)"))
+
+```
+```{r}
+# Load required libraries
+library(tidyverse)
+library(factoextra)
+library(ggplot2)
+library(ggrepel)
+
+# Define the file path
+file_path <- "/Users/gui/Desktop/Normalized_VSD_1.csv"
+
+# Load the dataset
+vsd_data <- read_csv(file_path)
+
+# Filter for the 5 mM condition only (Columns N-Y)
+vsd_data_filtered_5mM <- vsd_data %>% 
+  select(gene, starts_with("G5_"), starts_with("G6_"), starts_with("G7_"), starts_with("G8_"))
+
+# Calculate variance for each gene and select the top 500 genes with the highest variance
+top_genes_5mM <- vsd_data_filtered_5mM %>%
+  rowwise() %>%
+  mutate(variance = var(c_across(where(is.numeric)), na.rm = TRUE)) %>%
+  ungroup() %>%
+  arrange(desc(variance)) %>%
+  slice_head(n = 500) %>%
+  select(-variance)
+
+# Transpose the data matrix to have samples as rows and genes as columns
+top_genes_matrix_5mM <- as.matrix(top_genes_5mM %>% select(-gene))
+top_genes_matrix_5mM <- t(top_genes_matrix_5mM)  # Transpose the matrix
+
+# Perform PCA
+pca_result_5mM <- prcomp(top_genes_matrix_5mM, scale. = TRUE)
+
+# Prepare data for plotting
+pca_data_5mM <- data.frame(PC1 = pca_result_5mM$x[, 1], PC2 = pca_result_5mM$x[, 2],
+                           Sample = rownames(pca_result_5mM$x))
+
+# Add updated Group labels based on sample names
+pca_data_5mM <- pca_data_5mM %>%
+  mutate(Group = case_when(
+    str_detect(Sample, "G5") ~ "Control",
+    str_detect(Sample, "G6") ~ "MAG",
+    str_detect(Sample, "G7") ~ "OA",
+    str_detect(Sample, "G8") ~ "PA"
+  ))
+
+# Plot PCA with updated group names as labels
+ggplot(pca_data_5mM, aes(x = PC1, y = PC2, color = Group, shape = Group, label = Group)) +
+  geom_point(size = 3) +
+  geom_text_repel() +
+  theme_minimal() +
+  labs(title = "PCA Plot: 5 mM Condition with Top 500 Genes", 
+       x = paste0("PC1 (", round(summary(pca_result_5mM)$importance[2, 1] * 100, 1), "%)"), 
+       y = paste0("PC2 (", round(summary(pca_result_5mM)$importance[2, 2] * 100, 1), "%)")) +
+  scale_shape_manual(values = c("Control" = 16, "MAG" = 17, "OA" = 15, "PA" = 18))  # Diamond for PA
+
+```
