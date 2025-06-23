@@ -1,0 +1,379 @@
+---
+title: "Venn Diagram G1vG2 G1vG3 G1vG4"
+author: "Gui Trindade"
+date: "2024-08-19"
+output: html_document
+---
+```{r}
+# Check if the 'VennDiagram' package is installed; if not, install it
+if (!require("VennDiagram")) {
+  install.packages("VennDiagram")
+}
+library(VennDiagram)
+
+# Check if the 'readxl' package is installed; if not, install it
+if (!require("readxl")) {
+  install.packages("readxl")
+}
+library(readxl)
+
+```
+```{r}
+# Set your working directory to where your files are located
+setwd("/Users/gui/Desktop/ALEMAN VENN DIAGRAM")
+
+# Verify the working directory
+getwd()  # This should return "/Users/gui/Desktop/ALEMAN VENN DIAGRAM"
+
+```
+```{r}
+# Read the converted .xlsx file
+G1vG2 <- read_excel("DEseq2Results_Pval-0.05-fold2 G1vG2.xlsx")
+G1vG3 <- read_excel("DEseq2Results_Pval-0.05-fold2 G1vG3.xlsx")
+G1vG4 <- read_excel("DEseq2Results_Pval-0.05-fold2 G1vG4.xlsx")
+```
+```{r}
+# Extract the gene names or IDs from the 'row' column
+genes_1vs2 <- G1vG2$row  # Extract from G1 vs G2 comparison
+genes_1vs3 <- G1vG3$row  # Extract from G1 vs G3 comparison
+genes_1vs4 <- G1vG4$row  # Extract from G1 vs G4 comparison
+```
+```{r}
+# Create the Venn diagram and save it to an object
+venn.plot <- venn.diagram(
+  x = list("G1 vs G2" = genes_1vs2, "G1 vs G3" = genes_1vs3, "G1 vs G4" = genes_1vs4),
+  filename = NULL,  # Set to NULL to return the diagram object instead of saving it to a file
+  output = TRUE,
+  fill = c("red", "green", "blue"),  # Set colors for the circles
+  alpha = 0.5,                       # Set transparency
+  cex = 2,                           # Set text size
+  cat.cex = 2,                       # Set category label size
+  cat.pos = 0                        # Adjust category label positions
+)
+
+# Check if the Venn diagram was created successfully
+print(venn.plot)
+
+# If successful, draw the Venn diagram
+if (!is.null(venn.plot)) {
+  grid.draw(venn.plot)
+}
+# Draw the Venn diagram in RStudio
+grid.draw(venn.plot)
+
+# Open a new graphics device window (Quartz for macOS)
+quartz()
+
+# Draw the Venn diagram in the new window
+grid.draw(venn.plot)
+
+```
+```{r}
+# Define the file path where you want to save the Venn diagram
+output_file <- "/Users/gui/Desktop/ALEMAN VENN DIAGRAM/venn_diagram_G1_comparisons.png"
+
+# Open a PNG device with the specified file path
+png(filename = output_file, width = 800, height = 800, res = 150)
+
+# Draw the Venn diagram on the PNG device
+grid.draw(venn.plot)
+
+# Close the PNG device to save the file
+dev.off()
+
+# Print a message to confirm the file has been saved
+cat("Venn diagram saved to:", output_file, "\n")
+
+```
+```{r}
+# Create the Venn diagram with improved label placement
+venn.plot <- venn.diagram(
+  x = list("G1 vs G2" = genes_1vs2, "G1 vs G3" = genes_1vs3, "G1 vs G4" = genes_1vs4),
+  filename = NULL,  # Set to NULL to return the diagram object instead of saving it to a file
+  output = TRUE,
+  fill = c("red", "green", "blue"),  # Set colors for the circles
+  alpha = 0.5,                       # Set transparency of the circles
+  cex = 2,                           # Set text size for counts
+  cat.cex = 2,                       # Set category label size
+  cat.pos = c(0, 0, 0),              # Adjust category label positions to be inside circles
+  cat.dist = c(0.025, 0.025, 0.025), # Control the distance of labels from circle edges
+  cat.just = list(c(0.5, 1), c(0.5, 1), c(0.5, 1)),  # Center the labels inside the circles
+  label.col = "black",               # Set the color of the labels
+  fontfamily = "sans",               # Set font for all text
+  fontface = "bold",                 # Bold text for better readability
+  margin = 0.1                       # Add margin to prevent clipping
+)
+
+# Draw the Venn diagram directly in RStudio
+if (!is.null(venn.plot)) {
+  grid.draw(venn.plot)
+}
+
+# Save the Venn diagram as a PNG file in the specified folder
+output_file <- "/Users/gui/Desktop/ALEMAN VENN DIAGRAM/venn_diagram_G1_comparisons.png"
+
+# Open a PNG device with the specified file path
+png(filename = output_file, width = 800, height = 800, res = 150)
+
+# Draw the Venn diagram on the PNG device
+grid.draw(venn.plot)
+
+# Close the PNG device to save the file
+dev.off()
+
+# Print a message to confirm the file has been saved
+cat("Venn diagram saved to:", output_file, "\n")
+
+```
+```{r}
+# Extract specific gene lists for each section of the Venn diagram
+
+# Genes unique to G1 vs G2
+unique_G1vG2 <- setdiff(genes_1vs2, union(genes_1vs3, genes_1vs4))
+
+# Genes unique to G1 vs G3
+unique_G1vG3 <- setdiff(genes_1vs3, union(genes_1vs2, genes_1vs4))
+
+# Genes unique to G1 vs G4
+unique_G1vG4 <- setdiff(genes_1vs4, union(genes_1vs2, genes_1vs3))
+
+# Genes shared between G1 vs G2 and G1 vs G3 but not G1 vs G4
+shared_G1vG2_G1vG3 <- intersect(genes_1vs2, setdiff(genes_1vs3, genes_1vs4))
+
+# Genes shared between G1 vs G2 and G1 vs G4 but not G1 vs G3
+shared_G1vG2_G1vG4 <- intersect(genes_1vs2, setdiff(genes_1vs4, genes_1vs3))
+
+# Genes shared between G1 vs G3 and G1 vs G4 but not G1 vs G2
+shared_G1vG3_G1vG4 <- intersect(genes_1vs3, setdiff(genes_1vs4, genes_1vs2))
+
+# Genes shared across all three comparisons (G1 vs G2, G1 vs G3, G1 vs G4)
+shared_all <- intersect(intersect(genes_1vs2, genes_1vs3), genes_1vs4)
+
+# Print the gene lists
+cat("Genes unique to G1 vs G2:\n", unique_G1vG2, "\n\n")
+cat("Genes unique to G1 vs G3:\n", unique_G1vG3, "\n\n")
+cat("Genes unique to G1 vs G4:\n", unique_G1vG4, "\n\n")
+cat("Genes shared between G1 vs G2 and G1 vs G3 but not G1 vs G4:\n", shared_G1vG2_G1vG3, "\n\n")
+cat("Genes shared between G1 vs G2 and G1 vs G4 but not G1 vs G3:\n", shared_G1vG2_G1vG4, "\n\n")
+cat("Genes shared between G1 vs G3 and G1 vs G4 but not G1 vs G2:\n", shared_G1vG3_G1vG4, "\n\n")
+cat("Genes shared across all three comparisons:\n", shared_all, "\n\n")
+
+```
+```{r}
+# Save the gene lists to text files
+write.table(unique_G1vG2, "unique_G1vG2.txt", row.names = FALSE, col.names = FALSE)
+write.table(unique_G1vG3, "unique_G1vG3.txt", row.names = FALSE, col.names = FALSE)
+write.table(unique_G1vG4, "unique_G1vG4.txt", row.names = FALSE, col.names = FALSE)
+write.table(shared_G1vG2_G1vG3, "shared_G1vG2_G1vG3.txt", row.names = FALSE, col.names = FALSE)
+write.table(shared_G1vG2_G1vG4, "shared_G1vG2_G1vG4.txt", row.names = FALSE, col.names = FALSE)
+write.table(shared_G1vG3_G1vG4, "shared_G1vG3_G1vG4.txt", row.names = FALSE, col.names = FALSE)
+write.table(shared_all, "shared_all.txt", row.names = FALSE, col.names = FALSE)
+
+```
+GO TERM ENRICHMENT
+```{r}
+# Step 1: Install and Load Required Packages
+if (!require("BiocManager")) {
+  install.packages("BiocManager")
+}
+
+# Install and load the mouse-specific database (org.Mm.eg.db)
+if (!require("org.Mm.eg.db")) {
+  BiocManager::install("org.Mm.eg.db")
+}
+
+# Load required packages
+library(BiocManager)
+library(clusterProfiler)
+library(org.Mm.eg.db)  # Mouse database for gene annotations
+
+# Step 2: Convert Mouse Gene Symbols to Entrez IDs
+
+# Assuming your gene lists (genes_1vs2, genes_1vs3, genes_1vs4) are in mouse gene symbol format:
+# Convert mouse gene symbols to Entrez IDs using the mouse database
+genes_1vs2_entrez <- bitr(genes_1vs2, fromType = "SYMBOL", toType = "ENTREZID", OrgDb = org.Mm.eg.db)
+genes_1vs3_entrez <- bitr(genes_1vs3, fromType = "SYMBOL", toType = "ENTREZID", OrgDb = org.Mm.eg.db)
+genes_1vs4_entrez <- bitr(genes_1vs4, fromType = "SYMBOL", toType = "ENTREZID", OrgDb = org.Mm.eg.db)
+
+# Step 3: Perform GO Enrichment Analysis
+
+# Perform GO enrichment analysis for the mouse gene sets (Biological Process ontology)
+go_1vs2 <- enrichGO(gene = genes_1vs2_entrez$ENTREZID, OrgDb = org.Mm.eg.db, ont = "BP", pvalueCutoff = 0.05)
+go_1vs3 <- enrichGO(gene = genes_1vs3_entrez$ENTREZID, OrgDb = org.Mm.eg.db, ont = "BP", pvalueCutoff = 0.05)
+go_1vs4 <- enrichGO(gene = genes_1vs4_entrez$ENTREZID, OrgDb = org.Mm.eg.db, ont = "BP", pvalueCutoff = 0.05)
+
+# Step 4: View Top Enriched GO Terms
+
+# View the top enriched GO terms for G1 vs G2, G1 vs G3, G1 vs G4
+head(go_1vs2)
+head(go_1vs3)
+head(go_1vs4)
+
+# Step 5: Visualize the GO Enrichment Results
+
+# Barplot of top enriched GO terms for each comparison
+barplot(go_1vs2, showCategory = 10)
+barplot(go_1vs3, showCategory = 10)
+barplot(go_1vs4, showCategory = 10)
+
+# Dotplot of top enriched GO terms for each comparison
+dotplot(go_1vs2, showCategory = 10)
+dotplot(go_1vs3, showCategory = 10)
+dotplot(go_1vs4, showCategory = 10)
+
+# Optional: Save the GO enrichment results to CSV files
+write.csv(as.data.frame(go_1vs2), "GO_1vs2_enrichment.csv")
+write.csv(as.data.frame(go_1vs3), "GO_1vs3_enrichment.csv")
+write.csv(as.data.frame(go_1vs4), "GO_1vs4_enrichment.csv")
+
+```
+```{r}
+# Check which genes failed to map
+unmapped_genes_1vs2 <- setdiff(genes_1vs2, genes_1vs2_entrez$SYMBOL)
+unmapped_genes_1vs3 <- setdiff(genes_1vs3, genes_1vs3_entrez$SYMBOL)
+unmapped_genes_1vs4 <- setdiff(genes_1vs4, genes_1vs4_entrez$SYMBOL)
+
+# Print unmapped genes
+unmapped_genes_1vs2
+unmapped_genes_1vs3
+unmapped_genes_1vs4
+
+# Filter out genes with 'Gm', 'Olfr', 'RP', or 'n-' prefixes from the gene lists
+filtered_genes_1vs2 <- genes_1vs2[!grepl("^Gm|^Olfr|^RP|^n-", genes_1vs2)]
+filtered_genes_1vs3 <- genes_1vs3[!grepl("^Gm|^Olfr|^RP|^n-", genes_1vs3)]
+filtered_genes_1vs4 <- genes_1vs4[!grepl("^Gm|^Olfr|^RP|^n-", genes_1vs4)]
+
+# Print filtered gene lists to ensure that uncharacterized genes are removed
+head(filtered_genes_1vs2)
+head(filtered_genes_1vs3)
+head(filtered_genes_1vs4)
+
+# Convert filtered gene symbols to Entrez IDs
+filtered_genes_1vs2_entrez <- bitr(filtered_genes_1vs2, fromType = "SYMBOL", toType = "ENTREZID", OrgDb = org.Mm.eg.db)
+filtered_genes_1vs3_entrez <- bitr(filtered_genes_1vs3, fromType = "SYMBOL", toType = "ENTREZID", OrgDb = org.Mm.eg.db)
+filtered_genes_1vs4_entrez <- bitr(filtered_genes_1vs4, fromType = "SYMBOL", toType = "ENTREZID", OrgDb = org.Mm.eg.db)
+
+# Perform GO enrichment analysis for the filtered gene sets (Biological Process ontology)
+go_1vs2_filtered <- enrichGO(gene = filtered_genes_1vs2_entrez$ENTREZID, OrgDb = org.Mm.eg.db, ont = "BP", pvalueCutoff = 0.1)
+go_1vs3_filtered <- enrichGO(gene = filtered_genes_1vs3_entrez$ENTREZID, OrgDb = org.Mm.eg.db, ont = "BP", pvalueCutoff = 0.1)
+go_1vs4_filtered <- enrichGO(gene = filtered_genes_1vs4_entrez$ENTREZID, OrgDb = org.Mm.eg.db, ont = "BP", pvalueCutoff = 0.1)
+
+# View the top enriched GO terms
+head(go_1vs2_filtered)
+head(go_1vs3_filtered)
+head(go_1vs4_filtered)
+
+# Existing Code
+# Perform GO enrichment analysis for the filtered gene sets (Biological Process ontology)
+go_1vs2_filtered <- enrichGO(gene = filtered_genes_1vs2_entrez$ENTREZID, OrgDb = org.Mm.eg.db, ont = "BP", pvalueCutoff = 0.1)
+go_1vs3_filtered <- enrichGO(gene = filtered_genes_1vs3_entrez$ENTREZID, OrgDb = org.Mm.eg.db, ont = "BP", pvalueCutoff = 0.1)
+go_1vs4_filtered <- enrichGO(gene = filtered_genes_1vs4_entrez$ENTREZID, OrgDb = org.Mm.eg.db, ont = "BP", pvalueCutoff = 0.1)
+
+# View the top enriched GO terms
+head(go_1vs2_filtered)
+head(go_1vs3_filtered)
+head(go_1vs4_filtered)
+
+# New Code (Add this below the existing code)
+# Check the enrichment summary
+summary(go_1vs2_filtered)
+summary(go_1vs3_filtered)
+summary(go_1vs4_filtered)
+
+# Lower p-value cutoff to 0.2 to relax the significance threshold
+go_1vs2_filtered <- enrichGO(gene = filtered_genes_1vs2_entrez$ENTREZID, OrgDb = org.Mm.eg.db, ont = "BP", pvalueCutoff = 0.2)
+go_1vs3_filtered <- enrichGO(gene = filtered_genes_1vs3_entrez$ENTREZID, OrgDb = org.Mm.eg.db, ont = "BP", pvalueCutoff = 0.2)
+go_1vs4_filtered <- enrichGO(gene = filtered_genes_1vs4_entrez$ENTREZID, OrgDb = org.Mm.eg.db, ont = "BP", pvalueCutoff = 0.2)
+
+# View the enriched GO terms again after lowering the cutoff
+summary(go_1vs2_filtered)
+summary(go_1vs3_filtered)
+summary(go_1vs4_filtered)
+
+# Visualize the GO enrichment results using dotplot
+dotplot(go_1vs2_filtered, showCategory = 10)
+dotplot(go_1vs3_filtered, showCategory = 10)
+dotplot(go_1vs4_filtered, showCategory = 10)
+
+# Try alternative ontologies (Molecular Function and Cellular Component)
+go_1vs2_MF <- enrichGO(gene = filtered_genes_1vs2_entrez$ENTREZID, OrgDb = org.Mm.eg.db, ont = "MF", pvalueCutoff = 0.2)
+dotplot(go_1vs2_MF, showCategory = 10)
+
+go_1vs2_CC <- enrichGO(gene = filtered_genes_1vs2_entrez$ENTREZID, OrgDb = org.Mm.eg.db, ont = "CC", pvalueCutoff = 0.2)
+dotplot(go_1vs2_CC, showCategory = 10)
+
+
+# Visualize the enrichment results using dotplots
+dotplot(go_1vs2_filtered, showCategory = 10)
+dotplot(go_1vs3_filtered, showCategory = 10)
+dotplot(go_1vs4_filtered, showCategory = 10)
+
+
+```
+```{r}
+# Convert the GO enrichment result to a data frame
+go_1vs2_df <- as.data.frame(go_1vs2_filtered)
+go_1vs3_df <- as.data.frame(go_1vs3_filtered)
+go_1vs4_df <- as.data.frame(go_1vs4_filtered)
+
+# Check if any enriched terms exist for each comparison
+if (nrow(go_1vs2_df) > 0) {
+  print("Enriched terms found for G1 vs G2")
+} else {
+  print("No enriched terms found for G1 vs G2")
+}
+
+if (nrow(go_1vs3_df) > 0) {
+  print("Enriched terms found for G1 vs G3")
+} else {
+  print("No enriched terms found for G1 vs G3")
+}
+
+if (nrow(go_1vs4_df) > 0) {
+  print("Enriched terms found for G1 vs G4")
+} else {
+  print("No enriched terms found for G1 vs G4")
+}
+
+```
+```{r}
+# Load required libraries
+library(ggplot2)
+library(stringr)
+
+# Adjusted dotplot for better readability - G1 vs G2
+if (nrow(as.data.frame(go_1vs2_filtered)) > 0) {
+  dotplot(go_1vs2_filtered, showCategory = 10) +
+    theme(axis.text.y = element_text(size = 12, hjust = 1, vjust = 1, margin = margin(r = 10))) +  # Adjust y-axis text
+    theme(axis.text.x = element_text(size = 12)) +  # Increase x-axis text size
+    theme(axis.title.y = element_text(size = 14)) + # Increase y-axis title size
+    theme(axis.title.x = element_text(size = 14)) + # Increase x-axis title size
+    scale_y_discrete(labels = function(x) str_wrap(x, width = 40)) +  # Increase wrapping width
+    theme(axis.text.y = element_text(angle = 0))  # Optional: Rotate the labels if needed
+} else {
+  print("No enriched GO terms found for G1 vs G2")
+}
+
+# Adjusted dotplot for better readability - G1 vs G3
+if (nrow(as.data.frame(go_1vs3_filtered)) > 0) {
+  dotplot(go_1vs3_filtered, showCategory = 10) +
+    theme(axis.text.y = element_text(size = 12, hjust = 1, vjust = 1, margin = margin(r = 10))) +  # Adjust y-axis text
+    theme(axis.text.x = element_text(size = 12)) +  # Increase x-axis text size
+    theme(axis.title.y = element_text(size = 14)) + # Increase y-axis title size
+    theme(axis.title.x = element_text(size = 14)) + # Increase x-axis title size
+    scale_y_discrete(labels = function(x) str_wrap(x, width = 40)) +  # Increase wrapping width
+    theme(axis.text.y = element_text(angle = 0))  # Optional: Rotate the labels if needed
+} else {
+  print("No enriched GO terms found for G1 vs G3")
+}
+
+```
+
+
+
+
+
+
+
+
+
