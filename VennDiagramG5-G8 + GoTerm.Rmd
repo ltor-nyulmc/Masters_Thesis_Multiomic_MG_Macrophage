@@ -1,0 +1,423 @@
+---
+title: "G5"
+author: "Gui Trindade"
+date: "2024-08-20"
+output: html_document
+---
+```{r}
+# Set your working directory to the folder where your files are located
+setwd("/Users/gui/Desktop/ALEMAN VENN DIAGRAM G5")
+
+# Load the necessary libraries
+if (!require("VennDiagram")) {
+  install.packages("VennDiagram")
+}
+if (!require("readxl")) {
+  install.packages("readxl")
+}
+library(VennDiagram)
+library(readxl)
+
+# Install and load the openxlsx package if it’s not already installed
+if (!require("openxlsx")) {
+  install.packages("openxlsx")
+}
+library(openxlsx)
+
+
+library(readxl)
+
+# Load the newly saved .xlsx files
+G5vG6 <- read_excel("DEseq2Results_Pval-0.05-fold2G5vG6.xlsx")
+G5vG7 <- read_excel("DEseq2Results_Pval-0.05-fold2G5vG7.xlsx")
+G5vG8 <- read_excel("DEseq2Results_Pval-0.05-fold2G5vG8.xlsx")
+
+
+# View the first few rows of each data frame
+head(G5vG6)
+head(G5vG7)
+head(G5vG8)
+
+# Extract the gene names or IDs (replace 'GeneName' with the correct column name)
+genes_5vs6 <- G5vG6$row  # Check and replace 'row' if necessary
+genes_5vs7 <- G5vG7$row  # Check and replace 'row' if necessary
+genes_5vs8 <- G5vG8$row  # Check and replace 'row' if necessary
+
+```
+```{r}
+# Assuming the gene identifiers are in a column named "row"
+genes_5vs6 <- G5vG6$row  # Replace 'row' with the correct column name if necessary
+genes_5vs7 <- G5vG7$row  # Replace 'row' with the correct column name if necessary
+genes_5vs8 <- G5vG8$row  # Replace 'row' with the correct column name if necessary
+```
+
+```{r}
+# Create the Venn diagram for G5 vs G6, G5 vs G7, G5 vs G8
+venn.plot <- venn.diagram(
+  x = list("G5 vs G6" = genes_5vs6, "G5 vs G7" = genes_5vs7, "G5 vs G8" = genes_5vs8),
+  filename = NULL,  # Set to NULL to return the diagram object instead of saving it to a file
+  output = TRUE,
+  fill = c("red", "green", "blue"),  # Set colors for the circles
+  alpha = 0.5,                       # Set transparency
+  cex = 2,                           # Set text size for counts
+  cat.cex = 2,                       # Set category label size
+  cat.pos = c(0, 0, 0),              # Adjust category label positions
+  cat.dist = c(0.025, 0.025, 0.025), # Control distance of labels from circles
+  cat.just = list(c(0.5, 1), c(0.5, 1), c(0.5, 1)),  # Center the labels inside the circles
+  label.col = "black",               # Set the color of the labels
+  fontfamily = "sans",               # Set font for all text
+  fontface = "bold",                 # Bold text for better readability
+  margin = 0.1                       # Add margin to prevent clipping
+)
+
+# Draw the Venn diagram directly in RStudio
+if (!is.null(venn.plot)) {
+  grid.draw(venn.plot)
+}
+```
+
+```{r}
+# Save the Venn diagram as a PNG file in the specified folder
+output_file <- "/Users/gui/Desktop/ALEMAN VENN DIAGRAM G5/venn_diagram_G5_comparisons.png"
+
+# Open a PNG device with the specified file path
+png(filename = output_file, width = 800, height = 800, res = 150)
+
+# Draw the Venn diagram on the PNG device
+grid.draw(venn.plot)
+
+# Close the PNG device to save the file
+dev.off()
+
+# Print a message to confirm the file has been saved
+cat("Venn diagram saved to:", output_file, "\n")
+
+```
+
+```{r}
+# Extract specific gene lists for each section of the Venn diagram
+
+# Genes unique to G5 vs G6
+unique_G5vG6 <- setdiff(genes_5vs6, union(genes_5vs7, genes_5vs8))
+
+# Genes unique to G5 vs G7
+unique_G5vG7 <- setdiff(genes_5vs7, union(genes_5vs6, genes_5vs8))
+
+# Genes unique to G5 vs G8
+unique_G5vG8 <- setdiff(genes_5vs8, union(genes_5vs6, genes_5vs7))
+
+# Genes shared between G5 vs G6 and G5 vs G7 but not G5 vs G8
+shared_G5vG6_G5vG7 <- intersect(genes_5vs6, setdiff(genes_5vs7, genes_5vs8))
+
+# Genes shared between G5 vs G6 and G5 vs G8 but not G5 vs G7
+shared_G5vG6_G5vG8 <- intersect(genes_5vs6, setdiff(genes_5vs8, genes_5vs7))
+
+# Genes shared between G5 vs G7 and G5 vs G8 but not G5 vs G6
+shared_G5vG7_G5vG8 <- intersect(genes_5vs7, setdiff(genes_5vs8, genes_5vs6))
+
+# Genes shared across all three comparisons (G5 vs G6, G5 vs G7, G5 vs G8)
+shared_all <- intersect(intersect(genes_5vs6, genes_5vs7), genes_5vs8)
+
+# Print the gene lists
+cat("Genes unique to G5 vs G6:\n", unique_G5vG6, "\n\n")
+cat("Genes unique to G5 vs G7:\n", unique_G5vG7, "\n\n")
+cat("Genes unique to G5 vs G8:\n", unique_G5vG8, "\n\n")
+cat("Genes shared between G5 vs G6 and G5 vs G7 but not G5 vs G8:\n", shared_G5vG6_G5vG7, "\n\n")
+cat("Genes shared between G5 vs G6 and G5 vs G8 but not G5 vs G7:\n", shared_G5vG6_G5vG8, "\n\n")
+cat("Genes shared between G5 vs G7 and G5 vs G8 but not G5 vs G6:\n", shared_G5vG7_G5vG8, "\n\n")
+cat("Genes shared across all three comparisons:\n", shared_all, "\n\n")
+
+```
+GO TERM ENRICHMENT
+```{r}
+# Load required libraries
+library(clusterProfiler)
+library(org.Mm.eg.db)
+library(ggplot2)
+
+# Define the actual gene lists for G5, G6, G7, G8 (replace these with your actual gene symbols)
+genes_G5 <- c("0610039K10Rik", "1700003E16Rik", "1700101I11Rik", "1700113B19Rik", "2210411M09Rik", "2310002L09Rik")
+genes_G6 <- c("1110002E22Rik", "1500002F19Rik", "1600010M07Rik", "1700001L05Rik", "1700003F12Rik", "1700051K13Rik")
+genes_G7 <- c("1700066B19Rik", "1700109K24Rik", "2810454H06Rik", "4831440E17Rik", "4930518I15Rik", "6430590A07Rik")
+genes_G8 <- c("1700112H15Rik", "4933431K23Rik", "AU040972", "Acod1", "Adam33", "Bmp1")
+
+# Convert gene symbols to Entrez IDs for each group
+genes_G5_entrez <- bitr(genes_G5, fromType = "SYMBOL", toType = "ENTREZID", OrgDb = org.Mm.eg.db)
+genes_G6_entrez <- bitr(genes_G6, fromType = "SYMBOL", toType = "ENTREZID", OrgDb = org.Mm.eg.db)
+genes_G7_entrez <- bitr(genes_G7, fromType = "SYMBOL", toType = "ENTREZID", OrgDb = org.Mm.eg.db)
+genes_G8_entrez <- bitr(genes_G8, fromType = "SYMBOL", toType = "ENTREZID", OrgDb = org.Mm.eg.db)
+
+# Print the converted Entrez IDs
+print("Converted G5 Entrez IDs:")
+print(head(genes_G5_entrez))
+print("Converted G6 Entrez IDs:")
+print(head(genes_G6_entrez))
+print("Converted G7 Entrez IDs:")
+print(head(genes_G7_entrez))
+print("Converted G8 Entrez IDs:")
+print(head(genes_G8_entrez))
+
+# Perform GO enrichment analysis for each group (Biological Process ontology)
+go_G5 <- enrichGO(gene = genes_G5_entrez$ENTREZID, OrgDb = org.Mm.eg.db, ont = "BP", pvalueCutoff = 0.1)
+go_G6 <- enrichGO(gene = genes_G6_entrez$ENTREZID, OrgDb = org.Mm.eg.db, ont = "BP", pvalueCutoff = 0.1)
+go_G7 <- enrichGO(gene = genes_G7_entrez$ENTREZID, OrgDb = org.Mm.eg.db, ont = "BP", pvalueCutoff = 0.1)
+go_G8 <- enrichGO(gene = genes_G8_entrez$ENTREZID, OrgDb = org.Mm.eg.db, ont = "BP", pvalueCutoff = 0.1)
+
+# Visualize GO enrichment results using dotplots (G5 to G8)
+if (nrow(as.data.frame(go_G5)) > 0) {
+  dotplot(go_G5, showCategory = 10) +
+    theme(axis.text.y = element_text(size = 12)) +
+    theme(axis.text.x = element_text(size = 12)) +
+    theme(axis.title.y = element_text(size = 14)) +
+    theme(axis.title.x = element_text(size = 14)) +
+    scale_y_discrete(labels = function(x) str_wrap(x, width = 30)) +
+    ggtitle("GO Enrichment - G5 (Control)")
+} else {
+  print("No enriched GO terms found for G5")
+}
+
+if (nrow(as.data.frame(go_G6)) > 0) {
+  dotplot(go_G6, showCategory = 10) +
+    theme(axis.text.y = element_text(size = 12)) +
+    theme(axis.text.x = element_text(size = 12)) +
+    theme(axis.title.y = element_text(size = 14)) +
+    theme(axis.title.x = element_text(size = 14)) +
+    scale_y_discrete(labels = function(x) str_wrap(x, width = 30)) +
+    ggtitle("GO Enrichment - G6 (MAG)")
+} else {
+  print("No enriched GO terms found for G6")
+}
+
+if (nrow(as.data.frame(go_G7)) > 0) {
+  dotplot(go_G7, showCategory = 10) +
+    theme(axis.text.y = element_text(size = 12)) +
+    theme(axis.text.x = element_text(size = 12)) +
+    theme(axis.title.y = element_text(size = 14)) +
+    theme(axis.title.x = element_text(size = 14)) +
+    scale_y_discrete(labels = function(x) str_wrap(x, width = 30)) +
+    ggtitle("GO Enrichment - G7 (OA)")
+} else {
+  print("No enriched GO terms found for G7")
+}
+
+if (nrow(as.data.frame(go_G8)) > 0) {
+  dotplot(go_G8, showCategory = 10) +
+    theme(axis.text.y = element_text(size = 12)) +
+    theme(axis.text.x = element_text(size = 12)) +
+    theme(axis.title.y = element_text(size = 14)) +
+    theme(axis.title.x = element_text(size = 14)) +
+    scale_y_discrete(labels = function(x) str_wrap(x, width = 30)) +
+    ggtitle("GO Enrichment - G8 (PA)")
+} else {
+  print("No enriched GO terms found for G8")
+}
+
+```
+```{r}
+# Load necessary libraries
+library(clusterProfiler)
+library(org.Mm.eg.db)
+library(DOSE)
+library(ggplot2)
+
+# Define your actual gene lists here (replace these with your own lists)
+genes_G5 <- c("list_of_G5_genes_here")
+genes_G6 <- c("list_of_G6_genes_here")
+genes_G7 <- c("list_of_G7_genes_here")
+genes_G8 <- c("list_of_G8_genes_here")
+
+# Helper function to convert genes
+convert_genes_to_entrez <- function(gene_list, keytype = "SYMBOL") {
+  converted_genes <- tryCatch({
+    bitr(gene_list, fromType = keytype, toType = "ENTREZID", OrgDb = org.Mm.eg.db)
+  }, error = function(e) {
+    message(paste("Error in converting genes with keytype:", keytype, e$message))
+    return(NULL)
+  })
+  
+  if (is.null(converted_genes) || nrow(converted_genes) == 0) {
+    message(paste("No valid Entrez IDs found for", keytype, "keys."))
+    return(NULL)
+  } else {
+    # Log failed gene mappings
+    unmapped_genes <- setdiff(gene_list, converted_genes[[keytype]])
+    if (length(unmapped_genes) > 0) {
+      message(paste("Failed to map the following genes using", keytype, ":"))
+      print(unmapped_genes)
+    }
+    return(converted_genes)
+  }
+}
+
+# Try converting with SYMBOL first, if it fails, use ENSEMBL or MGI
+genes_G5_entrez <- convert_genes_to_entrez(genes_G5, "SYMBOL")
+if (is.null(genes_G5_entrez)) {
+  genes_G5_entrez <- convert_genes_to_entrez(genes_G5, "ENSEMBL")
+}
+
+genes_G6_entrez <- convert_genes_to_entrez(genes_G6, "SYMBOL")
+if (is.null(genes_G6_entrez)) {
+  genes_G6_entrez <- convert_genes_to_entrez(genes_G6, "ENSEMBL")
+}
+
+genes_G7_entrez <- convert_genes_to_entrez(genes_G7, "SYMBOL")
+if (is.null(genes_G7_entrez)) {
+  genes_G7_entrez <- convert_genes_to_entrez(genes_G7, "ENSEMBL")
+}
+
+genes_G8_entrez <- convert_genes_to_entrez(genes_G8, "SYMBOL")
+if (is.null(genes_G8_entrez)) {
+  genes_G8_entrez <- convert_genes_to_entrez(genes_G8, "ENSEMBL")
+}
+
+# Perform GO enrichment analysis
+perform_GO_enrichment <- function(entrez_genes, group_label) {
+  if (!is.null(entrez_genes) && nrow(entrez_genes) > 0) {
+    go_result <- enrichGO(gene = entrez_genes$ENTREZID, 
+                          OrgDb = org.Mm.eg.db, 
+                          ont = "BP",  # Biological Process
+                          pAdjustMethod = "BH", 
+                          pvalueCutoff = 0.1, 
+                          qvalueCutoff = 0.1, 
+                          readable = TRUE)
+    
+    if (is.null(go_result) || nrow(as.data.frame(go_result)) == 0) {
+      message(paste("No enriched GO terms found for", group_label))
+    } else {
+      return(go_result)
+    }
+  } else {
+    message(paste("No valid genes for GO enrichment in", group_label))
+  }
+  return(NULL)
+}
+
+# Run GO enrichment for each gene set
+go_G5 <- perform_GO_enrichment(genes_G5_entrez, "G5")
+go_G6 <- perform_GO_enrichment(genes_G6_entrez, "G6")
+go_G7 <- perform_GO_enrichment(genes_G7_entrez, "G7")
+go_G8 <- perform_GO_enrichment(genes_G8_entrez, "G8")
+
+# Visualize the GO enrichment results using dotplot
+visualize_GO <- function(go_result, group_label) {
+  if (!is.null(go_result) && nrow(as.data.frame(go_result)) > 0) {
+    dotplot(go_result, showCategory = 10) +
+      theme(axis.text.y = element_text(size = 10)) +
+      theme(axis.title = element_text(size = 12)) +
+      ggtitle(paste("GO Enrichment -", group_label))
+  } else {
+    message(paste("No GO terms to visualize for", group_label))
+  }
+}
+
+# Visualize for each group
+visualize_GO(go_G5, "G5 (Control)")
+visualize_GO(go_G6, "G6 (MAG)")
+visualize_GO(go_G7, "G7 (OA)")
+visualize_GO(go_G8, "G8 (PA)")
+
+```
+```{r}
+# Inspect the first 10 genes in each list to verify formatting
+print("Preview of G5 gene list:")
+print(head(genes_G5, 10))
+print("Preview of G6 gene list:")
+print(head(genes_G6, 10))
+print("Preview of G7 gene list:")
+print(head(genes_G7, 10))
+print("Preview of G8 gene list:")
+print(head(genes_G8, 10))
+
+library(org.Mm.eg.db)
+library(clusterProfiler)
+
+# Attempt conversion for each gene list
+tryCatch({
+    genes_G5_entrez <- bitr(genes_G5, fromType = "SYMBOL", toType = "ENTREZID", OrgDb = org.Mm.eg.db)
+    print("Converted G5 Entrez IDs:")
+    print(head(genes_G5_entrez))
+}, error = function(e) {
+    print("Error in converting genes with keytype: SYMBOL for G5")
+})
+
+tryCatch({
+    genes_G6_entrez <- bitr(genes_G6, fromType = "SYMBOL", toType = "ENTREZID", OrgDb = org.Mm.eg.db)
+    print("Converted G6 Entrez IDs:")
+    print(head(genes_G6_entrez))
+}, error = function(e) {
+    print("Error in converting genes with keytype: SYMBOL for G6")
+})
+
+tryCatch({
+    genes_G7_entrez <- bitr(genes_G7, fromType = "SYMBOL", toType = "ENTREZID", OrgDb = org.Mm.eg.db)
+    print("Converted G7 Entrez IDs:")
+    print(head(genes_G7_entrez))
+}, error = function(e) {
+    print("Error in converting genes with keytype: SYMBOL for G7")
+})
+
+tryCatch({
+    genes_G8_entrez <- bitr(genes_G8, fromType = "SYMBOL", toType = "ENTREZID", OrgDb = org.Mm.eg.db)
+    print("Converted G8 Entrez IDs:")
+    print(head(genes_G8_entrez))
+}, error = function(e) {
+    print("Error in converting genes with keytype: SYMBOL for G8")
+})
+
+# Perform GO enrichment analysis
+enrich_G5 <- tryCatch({
+    enrichGO(gene = genes_G5_entrez$ENTREZID, OrgDb = org.Mm.eg.db, ont = "BP", pAdjustMethod = "BH", qvalueCutoff = 0.05, minGSSize = 10, maxGSSize = 500)
+}, error = function(e) {
+    print("No valid genes for GO enrichment in G5")
+    return(NULL)
+})
+
+enrich_G6 <- tryCatch({
+    enrichGO(gene = genes_G6_entrez$ENTREZID, OrgDb = org.Mm.eg.db, ont = "BP", pAdjustMethod = "BH", qvalueCutoff = 0.05, minGSSize = 10, maxGSSize = 500)
+}, error = function(e) {
+    print("No valid genes for GO enrichment in G6")
+    return(NULL)
+})
+
+enrich_G7 <- tryCatch({
+    enrichGO(gene = genes_G7_entrez$ENTREZID, OrgDb = org.Mm.eg.db, ont = "BP", pAdjustMethod = "BH", qvalueCutoff = 0.05, minGSSize = 10, maxGSSize = 500)
+}, error = function(e) {
+    print("No valid genes for GO enrichment in G7")
+    return(NULL)
+})
+
+enrich_G8 <- tryCatch({
+    enrichGO(gene = genes_G8_entrez$ENTREZID, OrgDb = org.Mm.eg.db, ont = "BP", pAdjustMethod = "BH", qvalueCutoff = 0.05, minGSSize = 10, maxGSSize = 500)
+}, error = function(e) {
+    print("No valid genes for GO enrichment in G8")
+    return(NULL)
+})
+
+# Visualize the GO enrichment results using dotplots if terms were found
+if (!is.null(enrich_G5)) {
+    dotplot(enrich_G5, showCategory = 10) + ggtitle("GO Enrichment - G5 (Control)")
+} else {
+    print("No GO terms to visualize for G5 (Control)")
+}
+
+if (!is.null(enrich_G6)) {
+    dotplot(enrich_G6, showCategory = 10) + ggtitle("GO Enrichment - G6 (MAG)")
+} else {
+    print("No GO terms to visualize for G6 (MAG)")
+}
+
+if (!is.null(enrich_G7)) {
+    dotplot(enrich_G7, showCategory = 10) + ggtitle("GO Enrichment - G7 (OA)")
+} else {
+    print("No GO terms to visualize for G7 (OA)")
+}
+
+if (!is.null(enrich_G8)) {
+    dotplot(enrich_G8, showCategory = 10) + ggtitle("GO Enrichment - G8 (PA)")
+} else {
+    print("No GO terms to visualize for G8 (PA)")
+}
+
+```
+
+
