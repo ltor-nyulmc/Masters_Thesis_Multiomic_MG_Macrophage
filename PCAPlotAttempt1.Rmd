@@ -1,0 +1,84 @@
+---
+title: "Untitled"
+author: "Gui Trindade"
+date: "2024-09-24"
+output: html_document
+---
+```{r}
+BiocManager::install("remotes")
+
+remotes::install_github("xia-lab/MetaboAnalystR", build_vignettes = TRUE)
+
+install.packages("tidyverse")
+
+library(tidyverse)  # This loads dplyr and other useful packages
+
+```
+```{r}
+# Check unique conditions after cleaning
+unique(condition_column_clean)
+
+# Filter to check if the missing condition is being removed
+missing_condition_data <- combined_data[combined_data$Condition == "500uM_G1vG4", ]
+summary(missing_condition_data)
+
+# Ensure the palette has enough colors for all conditions
+palette_colors <- c("blue", "red", "green", "orange", "purple", "cyan")  # Add more colors as needed
+
+# Ensure the missing condition is included in the condition_column_clean
+if ("500uM_G1vG4" %in% condition_column_clean) {
+  print("500uM_G1vG4 condition is present")
+} else {
+  print("500uM_G1vG4 condition is missing from the dataset")
+}
+
+
+# Clean up non-finite and missing values
+numeric_data_clean <- numeric_data_clean[is.finite(rowSums(numeric_data_clean)), ]
+
+# Create the PCA plot without ellipses and zoom in further
+fviz_pca_ind(pca_result_clean,
+             geom.ind = "point",  # Show points only
+             pointsize = 2,  # Reduce point size
+             col.ind = condition_column_clean,  # Use cleaned condition column for coloring
+             palette = palette_colors,  # Adjust the colors based on the number of conditions
+             alpha.ind = 0.5,  # Increase transparency to reduce overlap
+             legend.title = "Condition") +
+  xlim(-1.5, 1.5) +  # Further zoom on x-axis
+  ylim(-1.5, 1.5) +  # Further zoom on y-axis
+  ggtitle("PCA Plot: 500uM vs 5mM (Cleaned & Zoomed)") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(legend.position = "right", legend.box = "vertical")  # Adjust legend position
+
+# Save the cleaned, zoomed plot
+ggsave("/Users/gui/Desktop/PCA/pca_plot_cleaned_zoomed.png", width = 8, height = 6)
+
+```
+```{r}
+# Filter the Condition column to match the cleaned data
+condition_column_clean <- combined_data$Condition[rownames(numeric_data_clean)]
+
+# Perform PCA on cleaned numeric data
+pca_result_clean <- prcomp(numeric_data_clean, scale. = TRUE)
+
+# Create the PCA plot
+fviz_pca_ind(pca_result_clean,
+             geom.ind = "point",
+             pointsize = 2,
+             col.ind = condition_column_clean,  # Use the cleaned condition column
+             palette = c("blue", "red", "green", "orange", "purple", "cyan"),  # Adjust the palette as needed
+             alpha.ind = 0.5,
+             legend.title = "Condition") +
+  xlim(-1.5, 1.5) +
+  ylim(-1.5, 1.5) +
+  ggtitle("PCA Plot: 500uM vs 5mM (Cleaned & Fixed)") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(legend.position = "right", legend.box = "vertical")
+
+# Save the new PCA plot
+ggsave("/Users/gui/Desktop/PCA/pca_plot_fixed.png", width = 8, height = 6)
+
+```
+
