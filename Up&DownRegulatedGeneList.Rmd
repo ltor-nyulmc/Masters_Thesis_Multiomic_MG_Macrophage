@@ -1,0 +1,121 @@
+500uM
+
+```{r}
+# Load required libraries
+library(openxlsx)
+library(VennDiagram)
+library(grid)
+library(dplyr)
+
+# Set your working directory to the new folder you created
+setwd("/Users/gui/Desktop/ALEMAN VENN DIAGRAM UP")
+
+# Verify the working directory
+getwd()  # This should return "/Users/gui/Desktop/ALEMAN VENN DIAGRAM UP"
+
+# Check if the 'readxl' package is installed; if not, install it
+if (!require("readxl")) {
+  install.packages("readxl")
+}
+library(readxl)
+
+# Read the Excel files for each comparison
+G1vG2 <- read_excel("/Users/gui/Desktop/ALEMAN VENN DIAGRAM UP/DEseq2Results_Pval-0.05-fold2 G1vG2.xlsx")
+G1vG3 <- read_excel("/Users/gui/Desktop/ALEMAN VENN DIAGRAM UP/DEseq2Results_Pval-0.05-fold2 G1vG3.xlsx")
+G1vG4 <- read_excel("/Users/gui/Desktop/ALEMAN VENN DIAGRAM UP/DEseq2Results_Pval-0.05-fold2 G1vG4.xlsx")
+
+
+# Extract the gene names or IDs from the 'row' column for each comparison
+genes_1vs2 <- G1vG2$row  
+genes_1vs3 <- G1vG3$row  
+genes_1vs4 <- G1vG4$row  
+
+# Define function to generate Venn diagrams and export gene lists
+generate_venn_and_export <- function(gene_list1, gene_list2, gene_list3, comparison_names, output_file) {
+  
+  # Create the Venn diagram and save it to file
+  venn.plot <- venn.diagram(
+    x = list(
+      gene_list1,
+      gene_list2,
+      gene_list3
+    ),
+    category.names = comparison_names,
+    filename = output_file,  # Save to the specified file path
+    output = TRUE,
+    fill = c("red", "blue", "green"),
+    alpha = 0.5,
+    cex = 2,
+    cat.cex = 2,
+    main = paste0("Venn Diagram: ", comparison_names[1], ", ", comparison_names[2], ", ", comparison_names[3])
+  )
+  
+  # Calculate the intersections of the gene lists
+  venn_list <- get.venn.partitions(list(gene_list1, gene_list2, gene_list3))
+  
+  # Export the gene list as an Excel file
+  write.xlsx(venn_list, file = gsub(".png", ".xlsx", output_file))
+  
+  # Return the Venn list for further inspection if needed
+  return(venn_list)
+}
+
+# Define file paths for upregulated and downregulated diagrams
+output_file_up <- "venn_diagram_upregulated.png"
+output_file_down <- "venn_diagram_downregulated.png"
+
+# Define comparison names
+comparison_names <- c("Control vs MAG", "Control vs OA", "Control vs PA")
+
+# Assuming you have already defined upregulated and downregulated gene lists
+venn_list_up <- generate_venn_and_export(upregulated_G1vG2, upregulated_G1vG3, upregulated_G1vG4, comparison_names, output_file_up)
+venn_list_down <- generate_venn_and_export(downregulated_G1vG2, downregulated_G1vG3, downregulated_G1vG4, comparison_names, output_file_down)
+
+# Print the gene lists for each section of the Venn diagrams
+cat("Gene list for each section of the Venn diagram (Upregulated):\n")
+print(venn_list_up)
+
+cat("Gene list for each section of the Venn diagram (Downregulated):\n")
+print(venn_list_down)
+
+```
+```{r}
+# Required Libraries
+library(openxlsx)
+library(dplyr)
+
+# Function to format and write the gene list to Excel
+save_gene_list_to_excel <- function(venn_list, output_file, comparison_names) {
+  
+  # Convert the Venn list into a data frame
+  venn_df <- as.data.frame(venn_list)
+  
+  # Unnest the gene values into individual rows
+  venn_df_clean <- venn_df %>%
+    mutate(..values.. = strsplit(as.character(..values..), ",")) %>%
+    unnest(..values..)
+  
+  # Label the first three columns
+  colnames(venn_df_clean)[1:3] <- comparison_names
+  
+  # Write the result to an Excel file
+  write.xlsx(venn_df_clean, file = output_file, asTable = TRUE)
+  
+  cat("Gene list saved to:", output_file, "\n")
+}
+
+# Paths for the upregulated and downregulated Excel files
+output_file_up <- "/Users/gui/Desktop/ALEMAN VENN DIAGRAM UP/Filtered_Gene_Lists_Upregulated.xlsx"
+output_file_down <- "/Users/gui/Desktop/ALEMAN VENN DIAGRAM UP/Filtered_Gene_Lists_Downregulated.xlsx"
+
+# Assuming `venn_list_up` and `venn_list_down` contain the upregulated and downregulated gene lists respectively
+comparison_names <- c("Control vs MAG", "Control vs OA", "Control vs PA")
+
+# Save the upregulated genes
+save_gene_list_to_excel(venn_list_up, output_file_up, comparison_names)
+
+# Save the downregulated genes
+save_gene_list_to_excel(venn_list_down, output_file_down, comparison_names)
+
+```
+
